@@ -1,11 +1,14 @@
 # webgpgpu
 
 Have you ever wanted to simulate a two-dimensional PDE or integro-differential equation on the GPU? Do you envy the reaction diffusion simulators of
-[pnmeila] (https://www.chromeexperiments.com/experiment/gray-scott-simulation),
+[pnmeila](
+https://www.chromeexperiments.com/experiment/gray-scott-simulation),
 [Felix Woitzel] (http://webglplayground.net/gallery),
-[Robin Houston] (https://bl.ocks.org/robinhouston/ed597847175cf692ecce,
+[Robin Houston]
+(https://bl.ocks.org/robinhouston/ed597847175cf692ecce),
 and [Inear]
-(http://www.inear.se/patterns/demo1/)? Have you walked through the [WebGL fundamentals](webgl tutorial 2015) tutorials, only to be frustrated by how much effort was needed to get control of a simple raster?
+(http://www.inear.se/patterns/demo1/)?
+Have you walked through the [WebGL fundamentals](webgl tutorial 2015) tutorials, only to be frustrated by how much effort was needed to get control of a simple raster?
 
 The OpenGL library is verbose, requiring hundreds of lines of code to get started with PDE simulation on the GPU. While there are examples of using WebGL for GPGPU code ([1](https://github.com/holgerl/webgl-gpgpu)
 [2](https://github.com/stormcolor/webclgl)
@@ -24,4 +27,4 @@ This repository is a record of my efforts to learn how to implement GPGPU code i
  3. Develop an API for simplifying WebGL PDE simulation
  4. Develop an API to simplify WebGL
 
-Note that aims (3) and (4) are redundant to some existing projects already mentioned. In my case, code re-use and debugging other's libraries on my system is more difficult than re-implementing the routines from scratch. Regardless, one must learn the details of WebGL code in order to effectively use and debug such libraries. The same is likely true if you decide to use any code stored here. The code examples here are best used as references and examples from which to code your own implementations, as this will give you a deeper understanding of WebGL and will be more rewarding than attempting to use any code in this project like a black box.
+Aims (3) and (4) are redundant to existing projects mentioned. In my case, code re-use and debugging other's libraries on my system is more difficult than re-implementing the routines from scratch. Regardless, one must learn the details of WebGL code in order to effectively use and debug such libraries. The same is likely true if you decide to use any code stored here. The code examples here are best used as references and examples from which to code your own implementations, as this will give you a deeper understanding of WebGL and will be more rewarding than attempting to use any code in this project like a black box.
