@@ -43,7 +43,7 @@ void main() {
 // Use chaos to get some amount of noise. This is experimental.
 // Using floats, because on the GPU we lose the ring properties
 // of ints due to saturating overlow. Plus, most numeric
-// operations are only defined for floats. 
+// operations are only defined for floats.
 #define XY gl_FragCoord.xy
 uniform   sampler2D data;
 void main() {
@@ -123,7 +123,6 @@ function main()
         gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,W,H,gl.RGBA,gl.UNSIGNED_BYTE,noise);
     }
 
-    //render( {}, noise1 );
 
     randomize(noise1);
     randomize(noise2);

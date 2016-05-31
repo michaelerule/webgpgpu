@@ -34,8 +34,8 @@ void main() {
 // Variables W, H will be defined later when shader is compiled
 uniform   sampler2D data;
 void main() {
-    vec2 scale = 1./vec2(W,H);
-    gl_FragColor = texture2D(data,gl_FragCoord.xy*scale);
+    vec2 xy = gl_FragCoord.xy/vec2(W,H);
+    gl_FragColor = texture2D(data,xy);
 }
 </script>
 
@@ -53,11 +53,28 @@ void main() {
     vec4 c2 = texture2D(data,(XY+vec2( 1, 0))*scale);
     vec4 c3 = texture2D(data,(XY+vec2(-1, 0))*scale);
     vec4 c4 = texture2D(data,(XY+vec2( 0,-1))*scale);
-    //gl_FragColor = mod(
-    //    vec4(c0*251+c1*241+c2*239+c3*233+c4*229+227)*0.000000390625,1.);
-    //gl_FragColor = vec4(.5,0,0,1);
-    vec3 color = mod((c0+c1+c2+c3+c4+3.1415923485).rgb*8.8857658763167322,1.0);
-    gl_FragColor = vec4(color,1.);
+    gl_FragColor = mod( (c0*c1*432.3214+c2*c3*1053.34+c4)*8.88576587, 1.0);
+}
+</script>
+
+<script id="gaussian" type="x-shader/x-fragment">
+// Takes two uniform random textures and makes a gaussian random texture
+// Using Box-Muller transform
+// Outputs are clamped to [0,1] so we make mean 0.5 and sigma 0.2
+#define tau 6.283185307179586
+uniform sampler2D noise;
+uniform sampler2D data;
+uniform float     sigma;
+uniform float     mean;
+void main() {
+    vec2 xy = gl_FragCoord.xy/vec2(W,H);
+    vec4 n  = texture2D(noise,xy);
+    vec2 R  = sqrt(-2.*log(n.rb));
+    vec2 T  = tau*n.ga;
+    vec4 nc = vec4(R*cos(T),R*sin(T));
+    vec4 dc = texture2D(data,xy);
+    dc = dc + nc*sigma + mean;
+    gl_FragColor = vec4(dc.rgb,1.);
 }
 </script>
 
@@ -70,17 +87,16 @@ void main() {
     vec4 c0 = texture2D(A,(XY+vec2( 0, 0))*scale);
     vec4 c1 = texture2D(B,(XY+vec2( 0, 0))*scale);
     vec4 alpha = vec4(1.,1.,1.,0)*ALPHA*c1.a*100.;
-    gl_FragColor = vec4((c1*alpha+c0*(100.-alpha)).rgb*.01,1.);
+    gl_FragColor = vec4((c1*alpha+(c0-0.5)*(100.-alpha)).rgb*.01,1.);
 }
 </script>
 
 <script id="contrast" type="x-shader/x-fragment">
-#define XY gl_FragCoord.xy
 uniform   sampler2D data;
 uniform   float gain;
 void main() {
-    vec2 scale = 1./vec2(W,H);
-    vec3 c = texture2D(data,(XY+vec2( 0, 0))*scale).rgb;
+    vec2 xy = gl_FragCoord.xy/vec2(W,H);
+    vec3 c  = texture2D(data,xy).rgb;
     gl_FragColor = vec4(vec3(1./(1.0+exp(gain*(2.-c*4.)))),1.);
 }
 </script>
@@ -114,20 +130,21 @@ function main()
     var gl = getRasterGL(canvas);
     if (!gl) OUT;
 
-    var kernel = createGaussianKernel(1);
+    var kernel = createGaussianKernel(4);
 
     var buffer1 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
     var buffer2 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
     var noise1  = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
-    var noise2  = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
     var output  = newBasicFramebuffer(gl);
+    var temp    = newBasicFramebuffer(gl);
 
-    var render  = getRasterProgram(gl,'draw-input');
-    var copy    = getRasterProgram(gl,'show');
-    var noise   = getRasterProgram(gl,'noise');
-    var contrast   = getRasterProgram(gl,'contrast');
+    var render   = getRasterProgram(gl,'draw-input');
+    var copy     = getRasterProgram(gl,'show');
+    var noise    = getRasterProgram(gl,'noise');
+    var contrast = getRasterProgram(gl,'contrast');
+    var gaussian = getRasterProgram(gl,'gaussian');
     var average = getRasterProgram(gl,'average',{
-        ALPHA : '0.1'
+        ALPHA : '0.3'
     });
     var blur_x  = getRasterProgram(gl,'blur',{
         K  : kernel.radius,
@@ -154,25 +171,37 @@ function main()
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,W,H,
             gl.RGBA,gl.UNSIGNED_BYTE,noise);
-    }
+    };
 
     randomize( noise1 );
     randomize( buffer1 );
 
+    function gpu_randomize(data) {
+        noise ( {data:data}, temp );
+        copy  ( {data:temp}, data );
+    }
+    function gpu_blur(data) {
+        blur_x( {weights:kernel, data:data}, temp );
+        blur_y( {weights:kernel, data:temp}, data );
+    }
     function animate() {
         setTimeout(function(){
-            noise ( {data:noise1}, output );
-            copy( {data:output}, noise1 );
-            blur_x( {weights:kernel, data:buffer1}, buffer2 );
-            blur_y( {weights:kernel, data:buffer2}, buffer1 );
-            average( {A:buffer1, B:noise1}, output);
-            contrast( {data:output,gain:1.1}, buffer2 );
-            copy( {data:buffer2}, buffer1);
+            gpu_blur(buffer1);
 
-            contrast( {data:buffer1,gain:5}, output );
-            copy( {data:output} );
+            gpu_randomize(noise1);
+            gaussian( {
+                noise:noise1,
+                data:buffer1,
+                sigma:0.1,
+                mean:0.00
+            }, temp);
+            contrast( {data:temp, gain:1.0}, buffer1 );
+            gpu_blur(buffer1);
+
+            contrast( {data:buffer1,gain:15} );
+
             requestAnimationFrame(animate);
-        },1000./60.);
+        },1000./20.);
     }
     animate();
 
