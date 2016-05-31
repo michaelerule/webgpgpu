@@ -19,8 +19,8 @@ The OpenGL library is verbose, requiring hundreds of lines of code to get starte
 [5](http://pathgl.com/documentation/gpgpu.html)), most of these examples
 
  - Do not demonstrate tight integration of GPGPU computation and visualization
- - Are incomplete and
- - Crash on my machine, likely because they require GL extensions.
+ - Are incomplete
+ - Crash on my machine
 
 This repository is a record of my efforts to learn how to implement GPGPU code in WebGL toward the aim of simulating neural field equations, which are very similar to reaction-diffusion equations. The stated objectives of this project are, in descending order
 
@@ -29,4 +29,4 @@ This repository is a record of my efforts to learn how to implement GPGPU code i
  3. Develop an API for simplifying WebGL PDE simulation
  4. Develop an API to simplify WebGL
 
-Aims (3) and (4) are redundant to existing projects. In my case, code re-use and debugging other's libraries on my system is more difficult than re-implementing routines from scratch. One must learn the details of WebGL code in order to effectively use and debug such libraries. The same is true if you use the code here. These examples are best used as references from which to code your own implementation, as this will give you a deeper understanding of WebGL and will be more rewarding than reusing my code in this project like a black box.
+Aims (3) and (4) are redundant to existing projects. In my case, code re-use and debugging other's libraries on my system is more difficult than re-implementing routines from scratch. One must learn the details of WebGL code in order to effectively use and debug such libraries. The same is true if you use the code here. These examples are best used as references from which to code your own implementation, as this will give you a deeper understanding of WebGL and will be more rewarding than reusing this code like a black box.

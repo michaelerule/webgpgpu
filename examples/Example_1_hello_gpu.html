@@ -1,16 +1,13 @@
 <html>
-<style media="screen" type="text/css">
-</style>
 
 <script id="vertices" type="x-shader/x-vertex">
-//<![CDATA[
 attribute vec2 a_position;
-void main() { gl_Position = vec4(a_position, 0, 1); }
-//]]>
+void main() {
+    gl_Position = vec4(a_position, 0, 1);
+}
 </script>
 
 <script id="fragment" type="x-shader/x-fragment">
-//<![CDATA[
 void main() {
     gl_FragColor = vec4(
         gl_FragCoord.x<256.?1:0,
@@ -18,7 +15,6 @@ void main() {
         mod(floor(gl_FragCoord.y/8.),2.),
         1);
 }
-//]]>
 </script>
 
 <script>

@@ -1,35 +1,35 @@
 <html>
-<script src="colormaps.js"></script>
-<script src="webgl_raster.js"></script>
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
 
-<script id="screen-fragment" type="x-shader/x-fragment">//<![CDATA[
+<script id="screen-fragment" type="x-shader/x-fragment">
 // This shader will be rendered to the screen
 precision mediump float;
 uniform sampler2D rtt_sampler;
 void main() {
-    gl_FragColor = (
-        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0, 0))/512.0)+
-        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0, 1))/512.0)+
-        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0,-1))/512.0)+
-        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0, 2))/512.0)+
-        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0,-2))/512.0)+
-        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0, 3))/512.0)+
-        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0,-3))/512.0)
-    )/7.;
+    float index = mod(gl_FragCoord.x+gl_FragCoord.y,256.) ;
+    vec4 sample = texture2D(
+        rtt_sampler, gl_FragCoord.xy/512.0);
+    gl_FragColor =
+        gl_FragCoord.y < 128.? vec4(1,index/256.,0,1) : sample;
 }
-//]]></script>
+</script>
 
-<script id="rtt-fragment" type="x-shader/x-fragment">//<![CDATA
+<script id="rtt-fragment" type="x-shader/x-fragment">
 // This shader will be rendered to a texture
 precision mediump   float;
 uniform   sampler2D u_palette_1;
 void main() {
-    float cx = mod(floor(gl_FragCoord.x/16.),2.);
-    float cy = mod(floor(gl_FragCoord.y/16.),2.);
-    float chex = mod(cx+cy,2.);
-    gl_FragColor = vec4(chex,chex,chex,1);
+    float index  = mod(gl_FragCoord.x+gl_FragCoord.y,256.) ;
+    vec4 sample = texture2D(
+        u_palette_1,
+        vec2((index + 0.5) / 256.0, 0.5));
+    gl_FragColor =
+        gl_FragCoord.x < 128.? vec4(0,0.5,1,1) :
+        gl_FragCoord.x > 500.? vec4(1,0,0,1) : sample;
+
 }
-//]]></script>
+</script>
 
 <script>
 // This is the main script that will run when the website loads

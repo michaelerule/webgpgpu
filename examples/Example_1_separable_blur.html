@@ -1,41 +1,37 @@
 <html>
-<script src="colormaps.js"></script>
-<script src="webgl_raster.js"></script>
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
 
-<script id="blur-x" type="x-shader/x-fragment">//<![CDATA[
+<script id="blur-x" type="x-shader/x-fragment">
 // This shader will be rendered to the screen
-#define WIDTH 3
-#define OUT gl_FragColor
-#define IN  gl_FragCoord.xy
 precision mediump float;
 uniform sampler2D input_data;
-uniform float parameters[2*WIDTH+1];
+#define WIDTH 2
+#define OUT gl_FragColor
+#define IN  gl_FragCoord.xy
 void main() {
     vec4 c = vec4(0,0,0,0);
-    for (int i=-WIDTH;i<=WIDTH;i++)
-        c += texture2D(input_data, (IN + vec2(i,0))/512.0)
-        * parameters[i+WIDTH];
-    c *= c;
+    for (int i=-3;i<=3;i++)
+        c += texture2D(input_data, (IN + vec2(i,0))/512.0);
     OUT = c/c.a;
 }
-//]]></script>
-
-<script id="blur-y" type="x-shader/x-fragment">//<![CDATA[
+</script>
+<script id="blur-y" type="x-shader/x-fragment">
 // This shader will be rendered to the screen
+precision mediump float;
+uniform sampler2D input_data;
 #define WIDTH 8
 #define OUT gl_FragColor
 #define IN  gl_FragCoord.xy
-precision mediump float;
-uniform sampler2D input_data;
 void main() {
     vec4 c = vec4(0,0,0,0);
     for (int i=-WIDTH;i<=WIDTH;i++)
         c += texture2D(input_data, (IN + vec2(0,i))/512.0);
     OUT = c/c.a;
 }
-//]]></script>
+</script>
 
-<script id="draw-input" type="x-shader/x-fragment">//<![CDATA
+<script id="draw-input" type="x-shader/x-fragment">
 // This shader will be rendered to a texture
 precision mediump   float;
 #define OUT gl_FragColor
@@ -46,7 +42,7 @@ void main() {
     float chex = mod(cx+cy,2.);
     OUT = vec4(chex,chex,chex,1);
 }
-//]]></script>
+</script>
 
 <script>
 // This is the main script that will run when the website loads
@@ -65,11 +61,6 @@ function main()
 
     var buffer1 = newBasicFramebuffer(gl,canvas.width);
     var buffer2 = newBasicFramebuffer(gl,canvas.width);
-
-    gl.useProgram(blur_x);
-    var pointer = gl.getUniformLocation(blur_x, 'parameters');
-    gl.uniform1fv(pointer, new Float32Array([.5,.5,.5,.0,.5,.5,.5]));
-    //gl.uniform1fv(pointer, new Float32Array([.1,.4,.0,-.4,-.1]));
 
     bindTexture (gl,blur_x,"input_data",1,buffer1.texture);
     bindTexture (gl,blur_y,"input_data",2,buffer2.texture);

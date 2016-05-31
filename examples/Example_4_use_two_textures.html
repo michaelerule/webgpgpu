@@ -1,35 +1,26 @@
 <html>
-<style media="screen" type="text/css">
-</style>
-
-<script src="colormaps.js"></script>
+<script src="../lib/colormaps.js"></script>
 
 <script id="vertices" type="x-shader/x-vertex">
-//<![CDATA[
 attribute vec2 a_position;
-void main() { gl_Position = vec4(a_position, 0, 1); }
-//]]>
+void main() {
+    gl_Position = vec4(a_position, 0, 1);
+}
 </script>
 
 <script id="fragment" type="x-shader/x-fragment">
-//<![CDATA[
 precision mediump   float;
 uniform   sampler2D u_palette_1;
 uniform   sampler2D u_palette_2;
 void main() {
-    //float index  =
-    //(cos((gl_FragCoord.x+gl_FragCoord.y)*0.1227184630308513)+1.)*128.0;
-    // gl_FragColor = texture2D(u_palette, vec2((index + 0.5) / 256.0, 0.5));
     float index  =  mod(gl_FragCoord.x+gl_FragCoord.y,256.) ;
     gl_FragColor = texture2D(
         gl_FragCoord.x<256.? u_palette_1 : u_palette_2,
         vec2((index + 0.5) / 256.0, 0.5));
 }
-//]]>
 </script>
 
 <script id="text_fragment" type="x-shader/x-fragment">
-//<![CDATA[
 void main() {
     gl_FragColor = vec4(
         gl_FragCoord.x<256.?1:0,
@@ -37,7 +28,6 @@ void main() {
         mod(floor(gl_FragCoord.y/8.),2.),
         1);
 }
-//]]>
 </script>
 
 <script>
