@@ -40,10 +40,10 @@ void main() {
 </script>
 
 <script id="noise" type="x-shader/x-fragment">
-// Use chaos to get some amount of noise
-// This is experimental and likely has very poor numeric properties
-// Can't really use integers since overflow saturates, you lose some of the nice
-// properties of the ring.
+// Use chaos to get some amount of noise. This is experimental.
+// Using floats, because on the GPU we lose the ring properties
+// of ints due to saturating overlow. Plus, most numeric
+// operations are only defined for floats. 
 #define XY gl_FragCoord.xy
 uniform   sampler2D data;
 void main() {
@@ -53,14 +53,8 @@ void main() {
     vec4 c2 = texture2D(data,(XY+vec2( 1, 0))*scale);
     vec4 c3 = texture2D(data,(XY+vec2(-1, 0))*scale);
     vec4 c4 = texture2D(data,(XY+vec2( 0,-1))*scale);
-    //gl_FragColor = mod(
-    //    vec4(c0*251+c1*241+c2*239+c3*233+c4*229+227)*0.000000390625,1.);
-    //gl_FragColor = vec4(.5,0,0,1);
-    vec3 color =
-        (XY.y*scale.y)>0.5
-        ? vec3(.5,.5,.5)
-        : mod((c0+c1+c2+c3+c4).rgb*8.8857658763167322,1.0);
-
+    vec3 color = mod((c0+c1+c2+c3+c4).rgb
+        *8.8857658763167322,1.0);
     gl_FragColor = vec4(color,1.);
 }
 </script>

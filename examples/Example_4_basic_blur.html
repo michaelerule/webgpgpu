@@ -4,14 +4,20 @@
 
 <script id="screen-fragment" type="x-shader/x-fragment">
 // This shader will be rendered to the screen
+// Rudimentary verticla blur by averaging pixels
+// Gaussian blur will use the same concept, but with weigts.
 precision mediump float;
 uniform sampler2D rtt_sampler;
 void main() {
-    float index = mod(gl_FragCoord.x+gl_FragCoord.y,256.) ;
-    vec4 sample = texture2D(
-        rtt_sampler, gl_FragCoord.xy/512.0);
-    gl_FragColor =
-        gl_FragCoord.y < 128.? vec4(1,index/256.,0,1) : sample;
+    gl_FragColor = (
+        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0, 0))/512.0)+
+        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0, 1))/512.0)+
+        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0,-1))/512.0)+
+        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0, 2))/512.0)+
+        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0,-2))/512.0)+
+        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0, 3))/512.0)+
+        texture2D(rtt_sampler, (gl_FragCoord.xy + vec2(0,-3))/512.0)
+    )/7.;
 }
 </script>
 
@@ -20,14 +26,10 @@ void main() {
 precision mediump   float;
 uniform   sampler2D u_palette_1;
 void main() {
-    float index  = mod(gl_FragCoord.x+gl_FragCoord.y,256.) ;
-    vec4 sample = texture2D(
-        u_palette_1,
-        vec2((index + 0.5) / 256.0, 0.5));
-    gl_FragColor =
-        gl_FragCoord.x < 128.? vec4(0,0.5,1,1) :
-        gl_FragCoord.x > 500.? vec4(1,0,0,1) : sample;
-
+    float cx = mod(floor(gl_FragCoord.x/16.),2.);
+    float cy = mod(floor(gl_FragCoord.y/16.),2.);
+    float chex = mod(cx+cy,2.);
+    gl_FragColor = vec4(chex,chex,chex,1);
 }
 </script>
 
@@ -40,18 +42,14 @@ function main()
 
     // Try to create a WebGL context on the canvas, abort if it fails
     var gl = getRasterGL(canvas);
-    if (!gl) return;
 
     // Render to texture test -- hold on to your hats
     var buffer          = newBasicFramebuffer(gl,canvas.width);
     var texture_program = getRasterProgram(gl,'rtt-fragment');
-    bindColormap(gl,texture_program,"u_palette_1",0,colormap1());
+    bindColormap(gl,texture_program.program,"u_palette_1",0,colormap1());
 
-    var screen_program  = getRasterProgram(gl,'screen-fragment');
-    bindTexture (gl,screen_program ,"rtt_sampler",1,buffer.texture);
-
-    renderProgram(gl,texture_program,buffer);
-    renderProgram(gl,screen_program);
+    texture_program({},buffer);
+    getRasterProgram(gl,'screen-fragment')({rtt_sampler:buffer});
 }
 </script>
 <body onload="javascript:main()">
