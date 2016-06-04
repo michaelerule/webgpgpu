@@ -123,17 +123,11 @@ function main()
         gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,W,H,gl.RGBA,gl.UNSIGNED_BYTE,noise);
     }
 
-
     randomize(noise1);
     randomize(noise2);
-
     show( {data:noise1} );
-
     noise( {data:noise1}, noise2 );
     show( {data:noise2} );
-
-
-
 
     function animate() {
         setTimeout(function(){

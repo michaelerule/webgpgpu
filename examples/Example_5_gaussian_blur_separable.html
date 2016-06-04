@@ -10,7 +10,7 @@ uniform   sampler2D data;
 uniform   float     weights[K+1];
 void main() {
     vec2 scale = 1./vec2(W,H);
-    vec4 c = texture2D(data,XY*scale);
+    vec4 c = texture2D(data,XY*scale)*weights[0];
     for (int i=1; i<=K; i++)
         c += (
             texture2D(data,(XY+vec2( i*(1-AX), i*AX))*scale)+
