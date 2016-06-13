@@ -1,0 +1,196 @@
+<html>
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+<script src="../lib/gpurand.js"></script>
+<script id="draw-input" type="x-shader/x-fragment">
+void main() {
+    float cx = mod(floor(gl_FragCoord.x/64.),2.);
+    float cy = mod(floor(gl_FragCoord.y/64.),2.);
+    float chex = mod(cx+cy,2.);
+    gl_FragColor = vec4(chex,chex,chex,1);
+}
+</script>
+<script id="wilson-cowan" type="x-shader/x-fragment">
+// Advanced Wilson-Cowan kernel.
+// Includes adaptation and a large number of parameters
+
+// Input texture
+// Uin.x = E cells
+// Uin.y = I cells
+// Uin.z = E cell adaptation
+// Uin.w = I cell adaptation
+uniform sampler2D Uin;
+
+// Convolved neural fields
+// Uconv.x is the convolved E cells
+// Uconv.y is the convolved I cells
+// Uconv.zw is undefined
+uniform sampler2D Uconv;
+
+// Noise texture
+// Provides 4 indenpendent channels of uniform random noise
+// Note: I have no proof that the noise is uniform or random.
+uniform sampler2D Unoise;
+
+// Stimulus mask: multiplied by the time varying stimulation
+// parameter to yield the net input into the system.
+uniform sampler2D stimulus_mask;
+
+// Uniform parameters.
+// The user should be able to tweak these on the fly
+// May need to compile some of them in for speed, unclear.
+uniform float dt;       // Time step
+uniform float tau_e;    // E cell time constant
+uniform float tau_i;    // I cell time constant
+uniform float tau_ve;   // E cell adaptation time constant
+uniform float tau_vi;   // I cell adaptation time constnat
+uniform float a_ee;     // E-E cell coupling strength
+uniform float a_ei;     // E-I cell coupling strength
+uniform float a_ie;     // I-E cell coupling strength
+uniform float a_ii;     // I-I cell coupling strength
+uniform float g_ee;     // E-E stimulus coupling gain
+uniform float g_ei;     // E-I stimulus coupling gain
+uniform float g_ie;     // I-E stimulus coupling gain
+uniform float g_ii;     // I-I stimulus coupling gain
+uniform float g_e;      // E cell stimulus drive
+uniform float g_i;      // I cell stimulus drive
+uniform float h_e;      // E cell DC offset
+uniform float h_i;      // I cell DC offset
+uniform float b_e;      // E cell adaptation strength
+uniform float b_i;      // I cell adaptation strength
+uniform float n_e;      // E cell noise level
+uniform float n_i;      // I cell noise level
+uniform float S;        // Stimulus input
+
+// firing nonlinearity
+float F(float x) {
+    return 1./(1.+exp(-x));
+}
+void main() {
+
+    vec2 XY = gl_FragCoord.xy/vec2(W,H);
+    vec4 U  = texture2D(Uin  ,XY);
+    vec4 Uc = texture2D(Uconv,XY);
+    vec4 N  = texture2D(Unoise,XY);
+    vec4 Sm = texture2D(stimulus_mask,XY);
+
+    vec4 stim = S*Sm;
+
+    float E_synaptic =
+      exp(1.+g_ee*stim.x)*a_ee*Uc.x
+    - exp(1.+g_ei*stim.y)*a_ei*Uc.y
+    + h_e
+    + g_e*S
+    - b_e*U.z
+    + n_e*N.x;
+
+    float I_synaptic =
+      exp(1.+g_ie*stim.z)*a_ie*Uc.x
+    - exp(1.+g_ii*stim.w)*a_ii*Uc.y
+    + h_i
+    + g_i*S
+    - b_i*U.w
+    + n_i*N.y;
+
+    float Ue  = U.x;
+    float Ui  = U.y;
+    float Ve  = U.z;
+    float Vi  = U.w;
+    Ue += (dt/tau_e)*(-Ue+F(E_synaptic));
+    Ui += (dt/tau_i)*(-Ui+F(I_synaptic));
+    Ve += (dt/tau_ve)*(-Ve+Ue);
+    Vi += (dt/tau_vi)*(-Vi+Ui);
+
+    gl_FragColor = vec4(Ue,Ui,Ve,Vi);
+}
+</script>
+<script>
+
+// This is the main script that will run when the website loads
+function main()
+{
+    // Retrieve a handle to the canvas element
+    // Then create a WebGL context on the canvas, abort if fail
+    var canvas = $("maincanvas");
+    var gl = getRasterGL(canvas);
+    if (!gl) OUT;
+
+
+    // Uniform parameters.
+    // The user should be able to tweak these on the fly
+    // May need to compile some of them in for speed, unclear.
+    params = {
+     dt    :1 ,       // Time step
+     tau_e :10 ,    // E cell time constant
+     tau_i :36 ,    // I cell time constant
+     tau_ve:1 ,   // E cell adaptation time constant
+     tau_vi:1 ,   // I cell adaptation time constnat
+     a_ee  :14.5 ,   // E-E cell coupling strength
+     a_ei  :10 ,     // E-I cell coupling strength
+     a_ie  :20 ,     // I-E cell coupling strength
+     a_ii  :11 ,     // I-I cell coupling strength
+     g_ee  :0 ,     // E-E stimulus coupling gain
+     g_ei  :0 ,     // E-I stimulus coupling gain
+     g_ie  :0 ,     // I-E stimulus coupling gain
+     g_ii  :0 ,     // I-I stimulus coupling gain
+     g_e   :0.6 ,      // E cell stimulus drive
+     g_i   :0.6 ,      // I cell stimulus drive
+     h_e   :2.9 ,      // E cell DC offset
+     h_i   :4 ,      // I cell DC offset
+     b_e   :0 ,      // E cell adaptation strength
+     b_i   :0 ,      // I cell adaptation strength
+     n_e   :.1 ,      // E cell noise level
+     n_i   :.1 ,      // I cell noise level
+     S     :7 ,        // Stimulus input
+    };
+
+    // Compile and prepare the shader programs
+    var render = getRasterProgram(gl,'draw-input');
+    var kernel = getRasterProgram(gl,'wilson-cowan');
+    var copy   = GPUcopy(gl);
+    var blur   = GPUGaussianBlur(gl,2.0);
+    var noise  = GPUNoise(gl);
+
+    // Initialize the GPU Memory
+    var temp = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var N    = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var U    = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var Sm   = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var UC   = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+
+    // Seed with random values
+    noise.randomize( N );
+    noise.randomize( Sm);
+    noise.randomize( U );
+
+    function updateState() {
+      noise(N,temp);
+      blur(U,temp,UC);
+      params['Uin'   ]=U ;
+      params['Uconv' ]=UC;
+      params['Unoise']=N ;
+      kernel(params,temp);
+      copy(temp,U);
+      copy(temp);
+    }
+
+    updateState();
+    updateState();
+    updateState();
+    updateState();
+
+    function animate() {
+        setTimeout(function(){
+            updateState();
+            //requestAnimationFrame(animate);
+        },1000./100.);
+    }
+    animate();
+}
+
+</script>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+</body>
+</html>

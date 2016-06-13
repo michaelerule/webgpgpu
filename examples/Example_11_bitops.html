@@ -1,0 +1,61 @@
+<html>
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+<script src="../lib/gpurand.js"></script>
+<script id="bitpermute" type="x-shader/x-fragment">
+// Treat incoming floats as uint8 and permute the bits
+// there are nicer ways to do this if you can send a texture
+// to a vertex buffer, or use integer types. WebGl supports none
+// of that except by extensions, but we can work around it.
+uniform sampler2D data;
+float getbit(float value, float index) {
+  // treats a [0,1] float like a uint8
+  return mod(floor((value*256.)/exp2(index)),2.);
+}
+float setbit(float value, float index, float bvalue) {
+  // treats a [0,1] float like a uint8
+  // bvalue should be either 0 or 1
+  float bv_old = getbit(value,index);
+  return (bvalue-bv_old)*exp2(index)/256. + value*256.;
+}
+void main() {
+    vec2 z  = gl_FragCoord.xy/vec2(W,H);
+    vec4 c  = texture2D(data,z);
+    float b = setbit(getbit(c.x,5.),7.,1.);
+    gl_FragColor = vec4(c.r,c.g,b,1.);
+}
+</script>
+
+<script id="draw-input" type="x-shader/x-fragment">
+void main() {
+    vec2 z = gl_FragCoord.xy/vec2(W,H);
+    gl_FragColor = vec4(z,0.,1.);
+}
+</script>
+<script>
+
+// This is the main script that will run when the website loads
+function main() {
+    // Retrieve a handle to the canvas element
+    var canvas = $("maincanvas");
+    // Create a WebGL context on the canvas, abort if fail
+    var gl = getRasterGL(canvas);
+    if (!gl) OUT;
+
+    var seed    = getRasterProgram(gl,'draw-input');
+    var permute = getRasterProgram(gl,'bitpermute');
+    var copy    = GPUcopy(gl);
+
+    var buffer1 = newBasicFramebuffer(gl,{wrap:gl.REPEAT});
+    var buffer2 = newBasicFramebuffer(gl,{wrap:gl.REPEAT});
+    seed({},buffer1);
+    permute({data:buffer1},buffer2);
+    copy(buffer2);
+}
+
+</script>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+</body>
+</html>

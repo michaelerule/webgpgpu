@@ -15,7 +15,7 @@ void main() {
 uniform sampler2D Uin;
 uniform sampler2D Uconv;
 uniform sampler2D Unoise;
-#define dt 0.1
+#define dt 1.0
 #define Te 5.0
 #define Ti 25.0
 #define DE (dt/Te)
@@ -99,7 +99,7 @@ function main()
     function animate() {
         setTimeout(function(){
             for (var ii=0; ii<5; ii++) {
-                noise(noise_buffer,temp);
+                //noise(noise_buffer,temp);
                 blur(U,temp,UC);
                 wc({Uin:U,
                     Uconv:UC,
@@ -116,6 +116,6 @@ function main()
 
 </script>
 <body onload="javascript:main()">
-<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+<canvas id='maincanvas' style="width:1025px;height:1024px;"></canvas>
 </body>
 </html>
