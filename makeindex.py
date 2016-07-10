@@ -24,13 +24,20 @@ template = '''
 </html>
 '''
 
+import locale
+from functools import cmp_to_key
+import re
+def natural_key(string_):
+    """See http://www.codinghorror.com/blog/archives/001018.html"""
+    return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', string_)]
+
 content = ""
 for root,dirs,files in os.walk('.'):
     if root[:3]=='./.': continue
     if root=='.': continue
     print(root,dirs,files)
     content += "<h2>%s</h2>"%root
-    for file in files:
+    for file in sorted(files,key=natural_key):
         if file[0]=='.': continue
         print(file)
         content+=\

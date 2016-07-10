@@ -11,6 +11,19 @@ void main() {
     gl_FragColor = vec4(chex,chex,chex,1);
 }
 </script>
+<script id="show-sim" type="x-shader/x-fragment">
+// Input texture
+// Uin.x = E cells
+// Uin.y = I cells
+// Uin.z = E cell adaptation
+// Uin.w = I cell adaptation
+uniform sampler2D Uin;
+void main() {
+    vec2 XY = gl_FragCoord.xy/vec2(W,H);
+    vec4 U  = texture2D(Uin,XY);
+    gl_FragColor = vec4(U.x,U.y,0.,1.);
+}
+</script>
 <script id="wilson-cowan" type="x-shader/x-fragment">
 // Advanced Wilson-Cowan kernel.
 // Includes adaptation and a large number of parameters
@@ -80,7 +93,7 @@ void main() {
     float E_synaptic =
       exp(1.+g_ee*stim.x)*a_ee*Uc.x
     - exp(1.+g_ei*stim.y)*a_ei*Uc.y
-    + h_e
+    - h_e
     + g_e*S
     - b_e*U.z
     + n_e*N.x;
@@ -88,7 +101,7 @@ void main() {
     float I_synaptic =
       exp(1.+g_ie*stim.z)*a_ie*Uc.x
     - exp(1.+g_ii*stim.w)*a_ii*Uc.y
-    + h_i
+    - h_i
     + g_i*S
     - b_i*U.w
     + n_i*N.y;
@@ -121,35 +134,36 @@ function main()
     // The user should be able to tweak these on the fly
     // May need to compile some of them in for speed, unclear.
     params = {
-     dt    :1 ,       // Time step
-     tau_e :10 ,    // E cell time constant
-     tau_i :36 ,    // I cell time constant
-     tau_ve:1 ,   // E cell adaptation time constant
-     tau_vi:1 ,   // I cell adaptation time constnat
-     a_ee  :14.5 ,   // E-E cell coupling strength
+     dt    :1 ,      // Time step
+     tau_e :4 ,     // E cell time constant
+     tau_i :40 ,     // I cell time constant
+     tau_ve:1 ,      // E cell adaptation time constant
+     tau_vi:1 ,      // I cell adaptation time constnat
+     a_ee  :10 ,     // E-E cell coupling strength
      a_ei  :10 ,     // E-I cell coupling strength
-     a_ie  :20 ,     // I-E cell coupling strength
-     a_ii  :11 ,     // I-I cell coupling strength
-     g_ee  :0 ,     // E-E stimulus coupling gain
-     g_ei  :0 ,     // E-I stimulus coupling gain
-     g_ie  :0 ,     // I-E stimulus coupling gain
-     g_ii  :0 ,     // I-I stimulus coupling gain
-     g_e   :0.6 ,      // E cell stimulus drive
-     g_i   :0.6 ,      // I cell stimulus drive
-     h_e   :2.9 ,      // E cell DC offset
-     h_i   :4 ,      // I cell DC offset
+     a_ie  :10 ,     // I-E cell coupling strength
+     a_ii  :10 ,     // I-I cell coupling strength
+     g_ee  :0 ,      // E-E stimulus coupling gain
+     g_ei  :0 ,      // E-I stimulus coupling gain
+     g_ie  :0 ,      // I-E stimulus coupling gain
+     g_ii  :0 ,      // I-I stimulus coupling gain
+     g_e   :0. ,     // E cell stimulus drive
+     g_i   :0. ,     // I cell stimulus drive
+     h_e   :2 ,      // E cell DC offset
+     h_i   :2 ,      // I cell DC offset
      b_e   :0 ,      // E cell adaptation strength
      b_i   :0 ,      // I cell adaptation strength
-     n_e   :.1 ,      // E cell noise level
-     n_i   :.1 ,      // I cell noise level
-     S     :7 ,        // Stimulus input
+     n_e   :1 ,      // E cell noise level
+     n_i   :1 ,      // I cell noise level
+     S     :0 ,      // Stimulus input
     };
 
     // Compile and prepare the shader programs
     var render = getRasterProgram(gl,'draw-input');
     var kernel = getRasterProgram(gl,'wilson-cowan');
+    var show   = getRasterProgram(gl,'show-sim');
     var copy   = GPUcopy(gl);
-    var blur   = GPUGaussianBlur(gl,2.0);
+    var blur   = GPUGaussianBlur(gl,4.0);
     var noise  = GPUNoise(gl);
 
     // Initialize the GPU Memory
@@ -172,7 +186,7 @@ function main()
       params['Unoise']=N ;
       kernel(params,temp);
       copy(temp,U);
-      copy(temp);
+      show({Uin:temp});
     }
 
     updateState();
@@ -183,7 +197,7 @@ function main()
     function animate() {
         setTimeout(function(){
             updateState();
-            //requestAnimationFrame(animate);
+            requestAnimationFrame(animate);
         },1000./100.);
     }
     animate();
