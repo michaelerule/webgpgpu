@@ -54,8 +54,8 @@ void main() {
     float He  = 3.55;
 
     vec2 XY = gl_FragCoord.xy/vec2(W,H);
-    vec4 U  = texture2D(Uin  ,XY);
-    vec4 Uc = texture2D(Uconv,XY);
+    vec4 U  = texture2D(Uin   ,XY);
+    vec4 Uc = texture2D(Uconv ,XY);
     vec4 N  = texture2D(Unoise,XY);
     float Ue  = U.r;
     float Ui  = U.g;

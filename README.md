@@ -28,3 +28,5 @@ This repository is a record of my efforts to learn how to implement GPGPU code i
  4. Develop an API to simplify WebGL
 
 Aims (3) and (4) are redundant to existing projects. In my case, code re-use and debugging other's libraries on my system is more difficult than re-implementing routines. One must learn the details of WebGL code in order to effectively use and debug such libraries. The same is true if you use the code here. These examples are best used as references from which to code your own implementation.
+
+[Currently accessible on Drobox since I can't seem to get Github pages to work](https://dl.dropboxusercontent.com/u/4345112/webgpgpu/index.html)
