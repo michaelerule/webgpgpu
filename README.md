@@ -8,7 +8,7 @@ https://www.chromeexperiments.com/experiment/gray-scott-simulation),
 (https://bl.ocks.org/robinhouston/ed597847175cf692ecce),
 and [Inear]
 (http://www.inear.se/patterns/demo1/)?
-Have you walked through the [WebGL fundamentals](webgl tutorial 2015) tutorials, only to be frustrated by how much effort was needed to wrest control of indivdual pixels? If so, you may be interested in this code.
+Have you walked through the [WebGL fundamentals](http://learningwebgl.com/blog/?p=11) tutorials, only to be frustrated by how much effort was needed to wrest control of indivdual pixels? If so, you may be interested in this code.
 
 The OpenGL library is verbose, requiring hundreds of lines of code to get started with PDE simulation on the GPU. While there are examples of using WebGL for GPGPU code ([1](https://github.com/holgerl/webgl-gpgpu)
 [2](https://github.com/stormcolor/webclgl)
