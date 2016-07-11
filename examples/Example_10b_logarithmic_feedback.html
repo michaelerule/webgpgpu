@@ -6,17 +6,18 @@
 <script id="feedback" type="x-shader/x-fragment">
 uniform sampler2D data;
 uniform vec2 w;
-#define SCALE (1.75)
 void main() {
     vec2 z = gl_FragCoord.xy/vec2(W,H);
     // convert position to point in complex plane
-    z = z*(2.*SCALE)-SCALE;
+    z = z*2.-1.;
 
-    // apply quadratic map
-    z = vec2(z.x*z.x-z.y*z.y,2.*z.x*z.y)+w;
+    vec2 u;
+    // complex logarithm
+    u.x = 3.*atan(z.y,z.x)*0.15915494309189533576888376337+w.x;
+    u.y = 3.*log(length(z))*0.15915494309189533576888376337+w.y;
 
     // convert back to screen coordinates and grab pixel
-    vec4 c = texture2D(data,(z+SCALE)/(2.*SCALE));
+    vec4 c = texture2D(data,u);
 
     // generate checkered grid for out of bounds points
     float cx = mod(floor(gl_FragCoord.x/128.),2.);
@@ -25,7 +26,7 @@ void main() {
     vec4 d = vec4(chex,chex,chex,1);
 
     gl_FragColor =
-        (z.x*z.x+z.y*z.y>(SCALE*SCALE)) ? d : c;
+        (z.x*z.x+z.y*z.y>1.) ? d : c;
 }
 </script>
 <script>
