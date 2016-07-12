@@ -30,11 +30,11 @@ uniform sampler2D Uin;
 uniform sampler2D Uconv;
 uniform sampler2D Unoise;
 
-uniform float t;
+uniform float s;
 
 #define dt 1.0
-#define Te 4.0
-#define Ti 12.5
+#define Te 10.0
+#define Ti 20.5
 #define DE (dt/Te)
 #define DI (dt/Ti)
 
@@ -49,12 +49,12 @@ float EncodeFloat( float v ) {
 
 void main() {
 
-    float Aei = 16.55;
-    float Aii = 13.;
-    float Aee = 16.35;
-    float Aie = 12.;
-    float Hi  = 3.0;
-    float He  = 3.55;
+    float Aei = 12.;
+    float Aii = 3.;
+    float Aee = 10.;
+    float Aie = 8.5;
+    float Hi  = 3.5;
+    float He  = 2.;
 
     vec2 XY = gl_FragCoord.xy/vec2(W,H);
     vec4 U  = texture2D(Uin   ,XY);
@@ -65,8 +65,8 @@ void main() {
     float Uec = Uc.r;
     float Uic = Uc.g;
 
-    float Ve = F(Aee*Uec-Aei*Uic-He+N.r+4.);
-    float Vi = F(Aie*Uec-Aii*Uic-Hi+N.g+4.);
+    float Ve = F(Aee*Uec-Aei*Uic-He+s);
+    float Vi = F(Aie*Uec-Aii*Uic-Hi);
     Ue += (Ve-Ue)*DE;
     Ui += (Vi-Ui)*DI;
 
@@ -94,7 +94,7 @@ function main()
     var map    = getRasterProgram(gl,'retinalmap');
     var wc     = getRasterProgram(gl,'wc');
     var copy   = GPUcopy(gl);
-    var blur   = GPUGaussianMultiBlur(gl,2,3.5,1,1);
+    var blur   = GPUGaussianMultiBlur(gl,2,2.5,1,1);
     console.log(blur.kernel)
 
     var noise  = GPUNoise(gl);
@@ -107,18 +107,20 @@ function main()
     noise.randomize( noise_buffer );
     noise.randomize( U );
 
+    var t = 0;
     function animate() {
         setTimeout(function(){
         noise(noise_buffer,temp);
             blur(U,temp,UC);
             wc({
-                t     :t,
+                s     :(Math.sin(t*0.001*6*20)*1.0),
                 Uin   :U,
                 Uconv :UC,
                 Unoise:noise_buffer,
                 },temp);
             copy(temp,U);
             map({data:temp})
+            t += 1;
             requestAnimationFrame(animate);
         },1000./100.);
     }
