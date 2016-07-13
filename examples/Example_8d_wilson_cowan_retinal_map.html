@@ -86,8 +86,6 @@ function main()
     var gl = getRasterGL(canvas);
     if (!gl) OUT;
 
-    //Aei=8.5;Aii=3;Ti=45;Hi=3.5;Gi=0;Si=2.4;Aee=14;Aie=12;Te=10;He=3;Ge=0.8;Se=1;dt=2;display_every=3;Amp=0;T=60;
-
     var render = getRasterProgram(gl,'draw-input');
     var map    = getRasterProgram(gl,'retinalmap');
     var wc     = getRasterProgram(gl,'wc');

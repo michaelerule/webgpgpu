@@ -38,9 +38,6 @@ void main() {
 uniform sampler2D Uin;
 uniform sampler2D Uconv;
 uniform float s;
-#define dt 1.0
-#define Te 10.0
-#define Ti 20.0
 #define DE (dt/Te)
 #define DI (dt/Ti)
 // firing nonlinearity
@@ -51,12 +48,6 @@ float EncodeFloat( float v ) {
   return floor(255.*v+0.5)/255.;
 }
 void main() {
-    float Aei = 12.;
-    float Aii = 3.;
-    float Aee = 10.5;
-    float Aie = 8.5;
-    float Hi  = 3.5;
-    float He  = 2.;
     vec2 XY = gl_FragCoord.xy/vec2(W,H);
     vec4 U  = texture2D(Uin   ,XY);
     vec4 Uc = texture2D(Uconv ,XY);
@@ -108,9 +99,21 @@ function main()
 
     make_fullscreen();
 
+    parameters = {
+      dt : '1.0',
+      Te : '10.0',
+      Ti : '20.0',
+      Aei :'12.0',
+      Aii :'3.0',
+      Aee :'10.5',
+      Aie :'8.5',
+      Hi  :'3.5',
+      He  :'2.0'
+    };
+    var wc  = getRasterProgram(gl,'wc',parameters);
+
     var render = getRasterProgram(gl,'draw-input');
     var map    = getRasterProgram(gl,'retinalmap');
-    var wc     = getRasterProgram(gl,'wc');
     var copy   = GPUcopy(gl);
     var blur   = GPUGaussianMultiBlur(gl,1,2,1,1);
     console.log(blur.kernel)
