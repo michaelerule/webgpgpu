@@ -30,8 +30,6 @@ uniform sampler2D Uin;
 uniform sampler2D Uconv;
 uniform sampler2D Unoise;
 
-uniform float t;
-
 #define dt 1.0
 #define Te 4.0
 #define Ti 12.5
@@ -112,7 +110,6 @@ function main()
         noise(noise_buffer,temp);
             blur(U,temp,UC);
             wc({
-                t     :t,
                 Uin   :U,
                 Uconv :UC,
                 Unoise:noise_buffer,
