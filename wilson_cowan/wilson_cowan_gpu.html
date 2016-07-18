@@ -241,8 +241,6 @@ This page requires JavaScript and access to the MathJax servers.<br/><br/>
             <input class="button" type="button" value="Save"/>
             <input class="button" type="button" value="Load"/>
             <input class="button" type="button" value="Randomize"/>
-            <input class="button" type="button" value="Perturb Homogeneous"/>
-            <input class="button" type="button" value="Compile Kernel"/>
         </div>
     </div>
 
@@ -379,14 +377,14 @@ function main() {
         if (inputs[i].type=='number') {
             controls.push(inputs[i]);
             var input = inputs[i];
-            input.addEventListener('input',compilekernel);
+            input.addEventListener('input',compile_kernel);
         }
     function setcontrols() {
         for (var i=0; i<controls.length; i++) {
             var control = controls[i];
             eval('control.value='+control.name);
         }
-        compilekernel();
+        compile_kernel();
     }
 
     var buttons = [];
@@ -442,9 +440,6 @@ function main() {
         stop();
         result = prompt("Paste saved parameters below:\n","");
         if (result) loadstring(result);
-    }
-    function compilekernel() {
-        compile_kernel();
     }
 
 
