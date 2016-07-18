@@ -34,10 +34,7 @@
 // cowan kernel below. The parameters.js library must be used to
 // parse and handle this parameter list. This bridges some of the
 // issues with interfacing a weakly typed language like javascript
-// with the strong typing of WebGLSL. Also, passing parameters to
-// shaders does not by default use a functional syntax, as the WebGL
-// API more or less exposes a state machine. This circumvents some
-// of these limitations.
+// with the strong typing of WebGLSL.
 // Arrays passed to shader
 sampler2D Uin;
 sampler2D Uconv;
@@ -262,8 +259,8 @@ This page requires JavaScript and access to the MathJax servers.<br/><br/>
 
 presets=[
 ['flicker','randomize','dt=1.0;Te=10.0;Ti=20.0;Aei=12.0;Aii=3.0;Aee=10.5;Aie=8.5;Hi=3.5;He=2.0;Ni=0.0;Ne=0.0;Gi=0.0;Ge=1.0;bi=0.0;be=0.0;Amp=0.6;Str=0.0;f=6.8;Se=1;Si=2;ai=1;ae=1;'],
-['spiral','randomize','Aii=0;Aie=10;Ti=10;Hi=3.5;Gi=0;Si=1;Ni=0;ai=100;bi=0;Aee=14;Aei=10;Te=5;He=2.5;Ge=1;Se=1;Ne=0.5;ae=50;be=1;dt=1;Amp=0;f=0;'],
-['Psychedelic','randomize','Aii=13;Aie=14.5;Ti=12.5;Hi=3.5;Gi=0;Si=2.9;Ni=0;ai=100;bi=0;Aee=16.1;Aei=13.7;Te=4;He=3.1;Ge=0;Se=2;Ne=.75;ae=50;be=0;dt=1;Amp=0;f=0;']
+['Psychedelic','randomize','Aii=13;Aie=14.5;Ti=12.5;Hi=3.5;Gi=0;Si=2.9;Ni=0;ai=100;bi=0;Aee=16.1;Aei=13.7;Te=4;He=3.1;Ge=0;Se=2;Ne=.75;ae=50;be=0;dt=1;Amp=0;f=0;'],
+['Rare_Waves','randomize','Aii=13;Aie=14.5;Ti=13;Hi=3.5;Gi=0;Si=1;Ni=0;ai=100;bi=0;Aee=17.2;Aei=13.7;Te=4;He=3.1;Ge=0;Se=3;Ne=1;ae=50;be=1.3;dt=1;Amp=0;f=0;']
 ];
 
 function main() {
