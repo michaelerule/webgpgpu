@@ -1,0 +1,218 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Helvetica, Arial, Sans-Serif;
+    background:#333;
+    color:#fff;
+    font-color:#fff;
+}
+A {
+    text-decoration:none;
+    color:#ff0;
+    font-color:#ff0;
+}
+#maincanvas {
+    margin: auto;
+    padding: 0;
+    width:512px;
+    height:512px;
+    cursor: pointer;
+    image-rendering: optimizeSpeed;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: optimize-contrast;
+    -ms-interpolation-mode: nearest-neighbor;
+}
+#canvasoverlay {
+    margin: auto;
+    padding: 0;
+    width:511px;
+    height:511px;
+    cursor: pointer;
+    background:#333;
+    color:#fff;
+    font-color:#fff;
+    border:solid 1px #777;
+    display: table;
+    text-align: center;
+}
+#equation {
+    width:auto;
+    padding:10px;
+    margin:auto;
+    display:block;
+    clear:both;
+    text-align:center;
+    font-size:75%;
+}
+#canvasdiv {
+    padding: 0;
+    width:912px;
+    height: auto;
+    margin: auto auto;
+    margin-top: 25px;
+}
+.controlbox {
+    width:200px;
+    height:512px;
+    float:left;
+}
+.controls {
+    width:100px;
+    float:right;
+}
+.infotext {
+    float:right;
+    margin-left:10px;
+    padding-top:-60px;
+    width:190px;
+    height:auto;
+    font-size:80%;
+}
+.control {
+    text-align:right;
+    width:100%;
+    font-size: 97%;
+}
+.controltext {
+    font-size: 95%;
+    clear:both;
+    display:block;
+    padding-top:5px;
+}
+input[type=number] {
+    margin: 1px 10px;
+    width:50px;
+    font-size: 85%;
+    -webkit-appearance: none;
+    background:#333;
+    color:#fff;
+    font-color:#fff;
+    border:solid 1px #777;
+    padding: 1px 1px 1px 1px;
+}
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    /* display: none; <- Crashes Chrome on hover */
+    -webkit-appearance: none;
+    margin: 0; /* <-- Apparently some margin are still there even though it's hidden */
+    opacity: 0;
+    pointer-events: none;
+}
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {-moz-appearance: textfield;}
+.button_container {
+    margin-top:4px;
+    margin-left:1px;
+    width:200px;
+    font-size:80%;
+}
+.button {
+    font-size:95%;
+    text-decoration: none;
+    float:left;
+    margin:-1px -1px 0px 0px;
+    border:solid 1px #777;
+    width:auto;
+    background:#333;
+    color:#fff;
+    font-color:#fff;
+    padding: 3px 7px 3px 7px;
+}
+.button:hover {
+    background: #fff;
+    text-decoration: none;
+    color: #333;
+    border:solid 1px #777;
+}
+.squarebutton {
+    text-decoration: none;
+    float:left;
+    margin:-1px -1px 0px 0px;
+    border:solid 1px #777;
+    width:  18px;
+    height: 18px;
+    background:#333;
+    color:#fff;
+    font-color:#fff;
+    padding: 0px;
+    text-align: center;
+    line-height: 18px;
+}
+.squarebutton:hover {
+    background: #fff;
+    text-decoration: none;
+    color: #333;
+    border:solid 1px #777;
+}
+.squarebutton div.info {
+    position: absolute;
+    left: -9999px;
+}
+.squarebutton:hover div.info {
+    position: absolute;
+    left:0px;
+    top:-29px;
+    width:200px;
+    color:#fff;
+    font-color:#fff;
+    text-align: left;
+    vertical-align: top;
+    font-size:9pt;
+    font-family:sans-serif;
+}
+.overlay{
+    background:#333;
+    color:#fff;
+    font-color:#fff;
+    position:fixed;
+    width:100%;
+    height:100%;
+    top:0px;
+    left:0px;
+    z-index:1000;
+}
+.clickblocker{
+    opacity: 0.0;
+    background:#333;
+    color:#fff;
+    font-color:#fff;
+    position:fixed;
+    width:100%;
+    height:100%;
+    top:0px;
+    left:0px;
+    z-index:1000;
+}
+/* make unselectable things that ought not be selected */
+.button, .control, .controls, .controlbox, .controltext, .button_container,
+#equation, #maincanvas, #canvasoverlay, .clickblocker, .overlay,
+.squarebutton .info {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    cursor: default;
+}
+/* make clickable things have the hand cursor */
+.button, #maincanvas, #canvasoverlay, .squarebutton {
+    cursor: pointer;
+}
+/* http://stackoverflow.com/questions/396145/how-to-vertically-center-a-div-for-all-browsers
+*/
+.outer {
+    display:  table;
+    position: absolute;
+    height:   100%;
+    width:    100%;
+}
+.middle {
+    display: table-cell;
+    vertical-align: middle;
+}
