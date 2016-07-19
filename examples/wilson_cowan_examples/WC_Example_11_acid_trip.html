@@ -12,21 +12,51 @@ body {overflow: hidden; }
 <script src="../../lib/gpgpu.js"></script>
 <script src="../../lib/gpugaussian.js"></script>
 <script src="../../lib/gpurand.js"></script>
+
 <script id="retinalmap" type="x-shader/x-fragment">
 uniform sampler2D data;
+uniform sampler2D noise;
 uniform float t;
-#define over2pi 0.15915494309189533576888376337
+#define twopi   6.283185307179586
+#define over2pi 0.159154943091895
+float max3 (vec3 v) {
+  return max (max (v.x, v.y), v.z);
+}
 void main() {
-    vec2 z = gl_FragCoord.xy/vec2(W,H);
-    // convert position to point in complex plane
+    vec2 XY = gl_FragCoord.xy/vec2(W,H);
+
+    // noisemaker
+    vec4 n  = texture2D(noise, XY)*.999+0.0001; // uniform noise
+    vec2 R  = sqrt(-2.*log(n.xy));  // Transform uniform noise
+    vec2 T  = twopi*n.zw;           // into Gaussian using Box-
+    vec4 N  = vec4(R*cos(T),R*sin(T))*.1; // Muller transform.
+
+
+    // remapper
+    vec2 z = vec2(XY);
     z = z*2.-1.;
-    // complex logarithm
     vec2 u;
     u.x = atan(z.y,z.x);
     u.y = log(length(z))-t*0.005;
-    gl_FragColor = texture2D(data,u*over2pi);
+
+    vec4 RGBA = texture2D(data,u*over2pi);
+
+    // huerotator
+    float th = -t*0.005;
+    float Q1 = sin(th)/sqrt(3.);
+    float Q2 = (1.-cos(th))/3.;
+    float rb = RGBA.r-RGBA.b;
+    float gr = RGBA.g-RGBA.r;
+    float bg = RGBA.b-RGBA.g;
+    float r1 = Q2*(gr-rb)-Q1*bg+RGBA.r;
+    float Z  = Q2*(bg-rb)+Q1*gr;
+    vec4 color = vec4(r1,RGBA.g+Z+(RGBA.r-r1),RGBA.b-Z,RGBA.a);
+    //color *= max3(RGBA.rgb)/max3(color.rgb);
+    color *= length(RGBA)/length(color);
+    gl_FragColor = color+N;
 }
 </script>
+
 <script id="wc" type="x-shader/x-fragment">
 #define dt (float(1))
 #define Te (float(4))
@@ -138,7 +168,8 @@ function main()
             copy(temp,U);
             color({Uin:U},temp);
             map({
-                data:temp,
+                noise : noise,
+                data  : temp,
                 t : t});
             t += 1;
             make_fullscreen();
