@@ -23,6 +23,18 @@ A {
     image-rendering: optimize-contrast;
     -ms-interpolation-mode: nearest-neighbor;
 }
+#ppcanvas {
+    margin: auto;
+    padding: 0;
+    width:512px;
+    height:512px;
+    cursor: pointer;
+    image-rendering: optimizeSpeed;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: optimize-contrast;
+    -ms-interpolation-mode: nearest-neighbor;
+}
 #canvasoverlay {
     margin: auto;
     padding: 0;

@@ -36,8 +36,8 @@ void main() {
     vec2 z = vec2(XY);
     z = z*2.-1.;
     vec2 u;
-    u.x = atan(z.y,z.x);
-    u.y = log(length(z))-t*0.005;
+    u.x = atan(z.y,z.x)-t*0.0003;
+    u.y = log(length(z))-t*0.001;
 
     vec4 RGBA = texture2D(data,u*over2pi);
 

@@ -73,7 +73,7 @@ void main() {
     vec4 N    = vec4(R*cos(T),R*sin(T))*sqrt(dt); // Muller transform.
 
     float Ae  = F(Aee*Uc.x-Aie*Uc.y-He+Ge*s-U.z*be+Ne*N.x);
-    float Ai  = F(Aei*Uc.x-Aii*Uc.y-Hi+Gi*s-U.w*bi+Ne*N.x);
+    float Ai  = F(Aei*Uc.x-Aii*Uc.y-Hi+Gi*s-U.w*bi+Ni*N.x);
     float Ue  = U.x + (Ae -U.x)*(dt/Te);
     float Ui  = U.y + (Ai -U.y)*(dt/Ti);
     float Ve  = U.z + (U.x-U.z)*(dt/ae);
@@ -214,10 +214,6 @@ This page requires JavaScript and access to the MathJax servers.<br/><br/>
         Click to start
         </div>
     </div>
-
-
-
-
     </div>
 
     <!-- just here for padding -->
