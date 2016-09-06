@@ -13,7 +13,7 @@
 shopt -s extglob
 ./go
 git add *
-git rm !(.*)
+git rm -r !(.*)
 git add -u :/
 git commit -m "$1"
 git push origin master
