@@ -1,0 +1,62 @@
+<html>
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+<script src="../lib/gpurand.js"></script>
+<script src="../lib/complex_macros.js"></script>
+
+<script>
+
+// This is the main script that will run when the website loads
+function main()
+{
+    // Get our example image (a tulip)
+    // it has already been cropped to a square (a requirement for loading
+    // images as textures for WebGL)
+    tulip = new Image();
+    tulip.src = 'tulip.png';
+    tulip.onload = function(){
+    // The remainder of the code is passed as a continuation, to be 
+    // run only once the image is loaded. 
+
+    // Retrieve a handle to the canvas element
+    var canvas = $("maincanvas");
+    // Get canvas location so we can find the mouse location
+    var rect = canvas.getBoundingClientRect();
+    // Create a WebGL context on the canvas, abort if fail
+    var gl = getRasterGL(canvas);
+    if (!gl) OUT; //this is a strange bit of code. OUT!?
+
+    // Define a routine to bind images to textures
+    // Note: this function also present in the gpgpu library
+    // but is written out here explicitly for clarity
+    function image_texture(gl,image) {
+        // Example via msdn.microsoft.com/en-us/library/dn385805(v=vs.85).aspx
+        // Create a texture object that will contain the image.
+        var texture = gl.createTexture();
+        // Bind the texture the target (TEXTURE_2D) of the active texture unit.
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        // Flip the image's Y axis to match the WebGL texture coordinate space.
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        // Set the parameters so we can render any size image.        
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); 
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        // Upload the resized canvas image into the texture.
+        // Note: a canvas is used here but can be replaced by an image object. 
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        return texture;
+    }
+
+    // Copy texture to screen!
+    GPUcopy(gl)(image_texture(gl,tulip));
+    
+    };// end onload function for tulip image
+}
+
+</script>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+</body>
+</html>

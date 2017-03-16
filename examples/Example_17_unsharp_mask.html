@@ -1,0 +1,66 @@
+<html>
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+<script src="../lib/gpurand.js"></script>
+<script src="../lib/complex_macros.js"></script>
+
+<script id="sharp" type="x-shader/x-fragment">
+uniform sampler2D img;
+uniform sampler2D blur;
+void main() {
+    vec2 q   = gl_FragCoord.xy/vec2(W,H); 
+    vec4 c1  = texture2D(img,q);
+    vec4 c2  = texture2D(blur,q);
+    vec4 c3  = c1+0.3*(c1-c2);
+    gl_FragColor = c3;
+}
+</script>
+
+<script>
+// This is the main script that will run when the website loads
+function main()
+{
+    // Get our example image (a tulip)
+    // it has already been cropped to a square (a requirement for loading
+    // images as textures for WebGL)
+    tulip = new Image();
+    tulip.src = 'tulip.png';
+    tulip.onload = function(){
+
+    // Create a WebGL context on the canvas, abort if fail
+    var gl = getRasterGL($("maincanvas"));
+    if (!gl) OUT; 
+
+    // Convert image to tulip
+    img  = image_texture(gl,tulip);
+    blur1 = GPUGaussianMultiBlur(gl,0.5);
+    blur2 = GPUGaussianMultiBlur(gl,1.9);
+    sharp= getRasterProgram(gl,'sharp');
+    show = GPUcopy(gl);
+    // Don't blur left side into right side: clamp textures to edge 
+    buf1 = newBasicFramebuffer(gl,{wrap : gl.CLAMP_TO_EDGE});
+    buf2 = newBasicFramebuffer(gl,{wrap : gl.CLAMP_TO_EDGE});
+    buf3 = newBasicFramebuffer(gl,{wrap : gl.CLAMP_TO_EDGE});
+    // Copy image to buffer (will be repeatedly blurred)
+    show(img,buf1);
+
+    function animate() {
+        setTimeout(function(){
+            blur2(buf1,buf2,buf3);
+            blur1(buf1,buf2,buf1);
+            sharp({img:buf1,blur:buf3},buf2);
+            show(buf2,buf1);
+            show(buf1);
+            requestAnimationFrame(animate);
+        },1000./20.);
+    }
+    animate();
+    
+    };
+}
+</script>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<html>
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+<script src="../lib/gpurand.js"></script>
+<script src="../lib/complex_macros.js"></script>
+
+<script id="huerotate" type="x-shader/x-fragment">
+uniform sampler2D image;
+uniform float Q1;
+uniform float Q2;
+void main() {
+    vec2 q     = gl_FragCoord.xy/vec2(W,H); 
+    vec4 c     = texture2D(image,q);
+    // Hue rotation procedure
+    // crawlingrobotfortress.blogspot.com/
+    //  2013/06/optimizing-hue-rotation-operator.html
+    // This is an optimized linear transformation
+    // The strange adding/subtracting you see is similar
+    // to Gauss' method for multiplying complex numbers. 
+    vec3  d  = c.rgb-c.brg;
+    float r1 = Q2*(d.g-d.r)-Q1*d.b+c.r;
+    float Z  = Q2*(d.b-d.r)+Q1*d.g;
+    vec3 c2  = vec3(r1,c.g+Z+c.r-r1,c.b-Z);
+    gl_FragColor = vec4(c2,0.0);
+}
+</script>
+
+
+<script>
+// This is the main script that will run when the website loads
+function main()
+{
+    // Get our example image (a tulip)
+    // it has already been cropped to a square (a requirement for loading
+    // images as textures for WebGL)
+    tulip = new Image();
+    tulip.src = 'tulip.png';
+    tulip.onload = function(){
+
+    // Create a WebGL context on the canvas, abort if fail
+    var gl = getRasterGL($("maincanvas"));
+    if (!gl) OUT; 
+
+    // Convert image to tulip
+    img = image_texture(gl,tulip);
+    hue = getRasterProgram(gl,'huerotate');
+
+    var theta = 0.0;
+    function animate() {
+        setTimeout(function(){
+            theta += 0.1;
+            hue({image:img,
+                Q1:Math.sin(theta)/Math.sqrt(3.0),
+                Q2:(1.0-Math.cos(theta))/3.0});
+            requestAnimationFrame(animate);
+        },1000./20.);
+    }
+    animate();
+
+    };
+}
+</script>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+</body>
+</html>

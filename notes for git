@@ -1,12 +1,16 @@
 Problem: I accidentally deleted everything.
-
 Ideally: roll back versions.
+Problem: this is considered dangerous with github
 
-Unclear really how to do this with github.
+Solution:
+
+Merge correct branch into master via overwriting
+Switch to master
+Merge correct branch back in with master? 
 
 #http://stackoverflow.com/questions/2763006/change-the-current-branch-to-master-in-git
 
-git checkout better_branch
+git checkout branch-name
 git merge --strategy=ours master    # keep the content of this branch, but record a merge
 git checkout master
-git merge better_branch             # fast-forward master up to the merge
+git merge branch-name            # fast-forward master up to the merge

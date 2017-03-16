@@ -1,0 +1,128 @@
+<html>
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+<script src="../lib/gpurand.js"></script>
+
+<script id="lighting" type="x-shader/x-fragment">
+uniform sampler2D data;
+uniform vec2 w;
+#define Wplane 4.0
+//#define warp(x) (1.0-log(1.1-(x)))
+//#define warp(x) log(0.01+x)
+#define warp(x) (x)
+void main() {
+    
+    vec2 size  = vec2(W,H);
+    vec2 scale = 1.0/size;
+    vec2 d     = Wplane*scale;
+    vec2 z     = gl_FragCoord.xy; 
+    vec2 v     = vec2(w.x,float(H)-w.y); 
+    vec2 curs  = abs(vec2(v.x,v.y)-z)*scale*3.99;
+    z = (z*scale-0.5)*Wplane;
+    v = (v*scale-0.5)*Wplane;
+    vec2 u = z/Wplane+0.5;
+    
+    vec4  c0  = texture2D(data,u);
+    vec4  c   = warp(c0);
+    c0 = c0*c0*c0*c0;
+    vec2 grad = vec2((warp(texture2D(data,u+scale.x))-c).x,
+                     (warp(texture2D(data,u+scale.y))-c).x);
+
+    vec4 outc = c0 + dot(grad,vec2(1.0,1.0));
+
+    // Render mouse cursor crosshair 
+    gl_FragColor = ((curs.x<d.x*5.5)&&(curs.y<d.y*0.5 )
+                 || (curs.x<d.x*0.5)&&(curs.y<d.y*5.5))
+                      ? 1.0-outc
+                      : outc;
+}
+</script>
+<script id="feedback" type="x-shader/x-fragment">
+uniform sampler2D data;
+uniform vec2 w;
+#define Wplane 4.0
+void main() {
+    vec2 size  = vec2(W,H);
+    vec2 scale = 1.0/size;
+    vec2 z     = gl_FragCoord.xy; 
+    vec2 v     = vec2(w.x,float(H)-w.y); 
+    vec2 curs  = abs(vec2(v.x,v.y)-z)*Wplane*scale;
+    z = (z*scale-0.5)*Wplane;
+    v = (v*scale-0.5)*Wplane;
+    
+    // apply quadratic map
+    z = vec2(z.x*z.x-z.y*z.y,2.*z.x*z.y)+v;
+
+    // convert back to screen coordinates
+    vec2 u = z/Wplane+0.5;
+
+    // Get radius of location of texture pull
+    float r = dot(z.xy,z.xy)*(1.0/Wplane);
+
+    gl_FragColor = (r>1.0) ? vec4(1.0) : texture2D(data,u)-(1.0/256.0)*(1.0-r);//*(r*0.01+0.99);
+}
+</script>
+<script>
+
+//Solution for monitoring the mouse location
+//http://stackoverflow.com/questions/7790725/javascript-track-mouse-position
+__mouse_location__ = {x:-1,y:-1};
+(function() {
+    document.onmousemove = handleMouseMove;
+    function handleMouseMove(event) {
+        __mouse_location__.x=event.pageX;
+        __mouse_location__.y=event.pageY;
+    }
+})();
+
+// This is the main script that will run when the website loads
+function main()
+{
+    // Retrieve a handle to the canvas element
+    var canvas = $("maincanvas");
+
+    // Get canvas location so we can find the mouse location
+    var rect = canvas.getBoundingClientRect();
+
+    // Hide mouse over canvas ( we will draw a new pointer in GL
+    //  to prove that our mouse location is working)
+    canvas.style.cursor = "none";
+
+    // Create a WebGL context on the canvas, abort if fail
+    var gl = getRasterGL(canvas);
+    if (!gl) OUT;
+
+    var seed     = getRasterProgram(gl,'draw-input');
+    var feedback = getRasterProgram(gl,'feedback');
+    var lighting = getRasterProgram(gl,'lighting');
+    var copy     = GPUcopy(gl);
+    var blur     = GPUGaussianBlur(gl,1.0);
+    var noise    = GPUNoise(gl);
+
+    var buffer1 = newBasicFramebuffer(gl,{wrap:gl.REPEAT});
+    var buffer2 = newBasicFramebuffer(gl,{wrap:gl.REPEAT});
+
+    p_x = 0.0;
+    p_y = 0.0;
+
+    function animate() {
+        setTimeout(function(){
+            var nx = __mouse_location__.x-rect.left;
+            var ny = __mouse_location__.y-rect.top;
+            p_x = 0.7*p_x+0.3*nx;
+            p_y = 0.7*p_y+0.3*ny;
+            feedback({data:buffer1,w:[p_x,p_y]},buffer2);
+            copy(buffer2,buffer1);
+            lighting({data:buffer1,w:[nx,ny]});
+            requestAnimationFrame(animate);
+        },1000./120.);
+    }
+    animate();
+}
+
+</script>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+</body>
+</html>
