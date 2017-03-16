@@ -44,6 +44,7 @@ function main()
 
     // Convert image to tulip
     img = image_texture(gl,tulip);
+    GPUcopy(gl)(img);
     hue = getRasterProgram(gl,'huerotate');
 
     var theta = 0.0;

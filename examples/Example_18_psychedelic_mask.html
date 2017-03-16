@@ -12,10 +12,32 @@ void main() {
     vec2 q   = gl_FragCoord.xy/vec2(W,H); 
     vec4 c1  = texture2D(img,q);
     vec4 c2  = texture2D(blur,q);
-    vec4 c3  = c1+0.3*(c1-c2);
+    vec4 c3  = c1+0.1*(c1-c2);
     gl_FragColor = c3;
 }
 </script>
+
+<script id="huerotate" type="x-shader/x-fragment">
+uniform sampler2D image;
+uniform float Q1;
+uniform float Q2;
+void main() {
+    vec2 q     = gl_FragCoord.xy/vec2(W,H); 
+    vec4 c     = texture2D(image,q);
+    // Hue rotation procedure
+    // crawlingrobotfortress.blogspot.com/
+    //  2013/06/optimizing-hue-rotation-operator.html
+    // This is an optimized linear transformation
+    // The strange adding/subtracting you see is similar
+    // to Gauss' method for multiplying complex numbers. 
+    vec3  d  = c.rgb-c.brg;
+    float r1 = Q2*(d.g-d.r)-Q1*d.b+c.r;
+    float Z  = Q2*(d.b-d.r)+Q1*d.g;
+    vec3 c2  = vec3(r1,c.g+Z+c.r-r1,c.b-Z);
+    gl_FragColor = vec4(c2,0.0);
+}
+</script>
+
 
 <script>
 // This is the main script that will run when the website loads
@@ -33,7 +55,8 @@ function main()
     if (!gl) OUT; 
 
     // Convert image to tulip
-    img  = image_texture(gl,tulip);
+    img   = image_texture(gl,tulip);
+    hue   = getRasterProgram(gl,'huerotate');
     blur1 = GPUGaussianMultiBlur(gl,0.5);
     blur2 = GPUGaussianMultiBlur(gl,1.9);
     sharp = getRasterProgram(gl,'sharp');
@@ -46,18 +69,24 @@ function main()
     // Copy image to buffer (will be repeatedly blurred)
     show(img,buf1);
 
+    theta = 0.05;
     function animate() {
-        setTimeout(function(){
+        setTimeout(function(){;
             blur2(buf1,buf2,buf3);
+            show(buf2,buf3);
             blur1(buf1,buf2,buf1);
             sharp({img:buf1,blur:buf3},buf2);
             show(buf2,buf1);
-            show(buf1);
+            hue({image:buf1,
+                Q1:Math.sin(theta)/Math.sqrt(3.0),
+                Q2:(1.0-Math.cos(theta))/3.0},
+                buf2);
+            show(buf2,buf1)
+            show(buf2);
             requestAnimationFrame(animate);
-        },1000./20.);
+        },1000./200.);
     }
     animate();
-    
     };
 }
 </script>
