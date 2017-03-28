@@ -1,0 +1,261 @@
+<html>
+
+<script>
+
+
+precision highp float;
+uniform sampler2D uSampler;
+varying float vLifespan;
+void main(void) {
+    vec4 texColor = texture2D(uSampler, gl_PointCoord);
+    //if (texColor.a == 0.) discard;
+    gl_FragColor = vec4(texColor.rgb, texColor.a * vLifespan);
+}
+
+// This is the vertex shader. 
+attribute vec4 aParticle;
+uniform mat4 uMVMatrix;
+uniform mat4 uPMatrix;
+uniform float uPointSize;
+varying float vLifespan;
+void main(void) {
+    gl_Position = uPMatrix * uMVMatrix * vec4(aParticle.xyz, 1.0);
+    vLifespan = aParticle.w;
+    gl_PointSize = uPointSize * vLifespan;
+}
+
+var camera      = null;
+var interactor  = null;
+var transforms  = null;
+var spriteTexture = null;
+var particles = [];
+var particleArray = null;
+var particleBuffer = null;
+ 
+var particleSize = 14.0;
+var particleLifespan = 3.0;
+ 
+var lastFrameTime = 0.0;
+ 
+function configure(){
+    gl.clearColor(0.3,0.3,0.3, 1.0);
+    gl.clearDepth(100.0);
+    gl.disable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LESS);
+    gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
+    
+    //Creates and sets up the camera location
+    camera = new Camera(CAMERA_ORBITING_TYPE);
+    camera.goHome([0,0,40]);
+    camera.setFocus([0.0,0.0,0.0]);
+    camera.setElevation(-40);
+    camera.setAzimuth(-30);
+    camera.hookRenderer = render;
+    
+    var canvas  = document.getElementById('canvas-element-id');
+ 
+    // Texture to use for the point sprite
+    spriteTexture = new Texture();
+    spriteTexture.setImage("textures/spark.png");
+    
+    //Creates and sets up the mouse and keyboard interactor
+    interactor = new CameraInteractor(camera, canvas);
+        
+    //Scene Transforms
+    transforms = new SceneTransforms(camera);
+   
+    //init transforms
+    transforms.init();
+    
+    //Program
+    attributeList = ["aParticle"];
+ 
+    uniformList = [ "uPMatrix", 
+                    "uMVMatrix", 
+                    "uPointSize",
+                    "uSampler",
+                    ];
+    
+    Program.load(attributeList, uniformList);
+ 
+    configureParticles(1024);
+}
+ 
+function resetParticle(p) {
+    p.pos = [0.0, 0.0, 0.0];
+ 
+    p.vel = [
+        (Math.random() * 20.0) - 10.0,
+        (Math.random() * 20.0),
+        (Math.random() * 20.0) - 10.0,
+    ];
+ 
+    p.lifespan = (Math.random() * particleLifespan);
+    p.remainingLife = p.lifespan;
+}
+ 
+function configureParticles(count) {
+    var i, p;
+ 
+    particleArray = new Float32Array(count * 4);
+ 
+    for(i = 0; i < count; ++i) {
+        p = {};
+        resetParticle(p);
+        particles.push(p);
+ 
+        particleArray[(i*4) + 0] = p.pos[0];
+        particleArray[(i*4) + 1] = p.pos[1];
+        particleArray[(i*4) + 2] = p.pos[2];
+        particleArray[(i*4) + 3] = p.remainingLife / p.lifespan;
+    }
+ 
+    particleBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, particleArray, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+}
+ 
+function updateParticles(elapsed) {
+    var i, p, count = particles.length;
+ 
+    // Loop through all the particles in the array
+    for(i = 0; i < count; ++i) {
+        p = particles[i];
+ 
+        // Track the particles lifespan
+        p.remainingLife -= elapsed;
+        if(p.remainingLife <= 0) {
+            resetParticle(p); // Once the particle expires, reset it to the origin with a new velocity
+        }
+ 
+        // Update the particle position
+        p.pos[0] += p.vel[0] * elapsed;
+        p.pos[1] += p.vel[1] * elapsed;
+        p.pos[2] += p.vel[2] * elapsed;
+        
+        // Apply gravity to the velocity
+        p.vel[1] -= 9.8 * elapsed;
+        if(p.pos[1] < 0) {
+            p.vel[1] *= -0.75; // Allow particles to bounce off the floor
+            p.pos[1] = 0;
+        }
+ 
+        // Update the corresponding values in the array
+        particleArray[(i*4) + 0] = p.pos[0];
+        particleArray[(i*4) + 1] = p.pos[1];
+        particleArray[(i*4) + 2] = p.pos[2];
+        particleArray[(i*4) + 3] = p.remainingLife / p.lifespan;
+    }
+ 
+    // Once we are done looping through all the particles, update the buffer once
+    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, particleArray, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+}
+ 
+/**
+* Loads the scene
+*/
+function load(){
+    Floor.build(80,2);
+    Scene.addObject(Floor);
+ 
+    lastFrameTime = Date.now();
+}
+ 
+function render(){
+    var time = Date.now();
+ 
+    // Update the particle positions
+    updateParticles((time - lastFrameTime) / 1000.0);
+ 
+    lastFrameTime = time;
+ 
+    // Render scene
+    draw();
+}
+ 
+/**
+* invoked on every rendering cycle
+*/
+function draw() {
+    gl.viewport(0, 0, c_width, c_height);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    transforms.updatePerspective();
+    try{
+        gl.enable(gl.BLEND);
+        gl.useProgram(prg);
+ 
+        transforms.calculateModelView();
+        transforms.setMatrixUniforms();
+ 
+        gl.uniform1f(Program.uPointSize, particleSize);
+ 
+        gl.bindBuffer(gl.ARRAY_BUFFER, particleBuffer);
+        gl.vertexAttribPointer(Program.aParticle, 4, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(Program.aParticle);
+ 
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, spriteTexture.tex);
+        gl.uniform1i(Program.uSampler, 0);
+ 
+        gl.drawArrays(gl.POINTS, 0, particles.length);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    }
+    catch(err){
+        alert(err);
+        console.error(err.description);
+    }
+}
+ 
+ 
+/**
+* Entry point. This function is invoked when the page is loaded
+*/
+var app = null;
+function runWebGLApp() {
+    app = new WebGLApp("canvas-element-id");
+    app.configureGLHook = configure;
+    app.loadSceneHook   = load;
+    app.drawSceneHook   = render;
+    app.run();
+}
+</script>
+
+<body onLoad='runWebGLApp()'>
+<div id="top">
+<h1>WebGL Beginner's Guide - Chapter 10</h1>
+<h2 id="title-id">Point Sprites</h2>
+ 
+<div id="logo-packt"><img src="packt.gif"></div>
+<p></p>
+</div>
+ 
+<div id="contents" style="height: 400px;"><div id="bottom" style="display: block; width: 60%; opacity: 0.878664;">
+<table style="padding=0px">
+<tbody><tr>
+    <td style="vertical-align:center;">
+        <table>
+        <tbody><tr>
+            <td>Size:</td><td id="slider-particle-size-label">28</td><td width="150px"><div id="slider-particle-size" class="ui-slider ui-slider-horizontal ui-widget ui-widget-content ui-corner-all"><a class="ui-slider-handle ui-state-default ui-corner-all" href="#" style="left: 35.7143%;"></a></div></td>
+        </tr>
+        <tr>
+            <td>Lifespan:</td><td id="slider-particle-lifespan-label">9.8</td><td width="150px"><div id="slider-particle-lifespan" class="ui-slider ui-slider-horizontal ui-widget ui-widget-content ui-corner-all"><a class="ui-slider-handle ui-state-default ui-corner-all" href="#" style="left: 29.2929%;"></a></div></td>
+        </tr>
+        </tbody></table>
+    </td>
+</tr>
+ 
+</html>
+ 
+ 
+</tbody></table></div>
+<div id="canvasContainer" style="width: 39%; height: 400px; display: block; opacity: 0.879822;">
+<canvas id="canvas-element-id" width="603" height="400">
+Your browser does not support the HTML5 canvas element.
+</canvas>
+</div>
+</div>
+ 
+<div id="buttons"><div id="buttonsCode" style="display: none;" class="ui-buttonset"><input id="btnSourceCode" name="radio" onclick="cview.loadSource(0)" checked="checked" class="ui-helper-hidden-accessible" type="radio"><label for="btnSourceCode" class="ui-state-active ui-button ui-widget ui-state-default ui-button-text-only ui-corner-left" aria-pressed="true" role="button" aria-disabled="false"><span class="ui-button-text">WebGL JS</span></label><input id="btnVertexShader" name="radio" onclick="cview.loadSource(1)" class="ui-helper-hidden-accessible" type="radio"><label for="btnVertexShader" aria-pressed="false" class="ui-button ui-widget ui-state-default ui-button-text-only" role="button" aria-disabled="false"><span class="ui-button-text">Vertex Shader</span></label><input id="btnFragmentShader" name="radio" onclick="cview.loadSource(2)" class="ui-helper-hidden-accessible" type="radio"><label for="btnFragmentShader" aria-pressed="false" class="ui-button ui-widget ui-state-default ui-button-text-only" role="button" aria-disabled="false"><span class="ui-button-text">Fragment Shader</span></label><input id="btnHTML" name="radio" onclick="cview.loadSource(3)" class="ui-helper-hidden-accessible" type="radio"><label for="btnHTML" aria-pressed="false" class="ui-button ui-widget ui-state-default ui-button-text-only ui-corner-right" role="button" aria-disabled="false"><span class="ui-button-text">HTML</span></label></div><div id="buttonsCanvas" class="ui-buttonset"><input id="btnFullView" name="mode" value="view" checked="checked" class="ui-helper-hidden-accessible" type="radio"><label id="lblFullView" for="btnFullView" class="ui-button ui-widget ui-state-default ui-button-text-only ui-corner-left" aria-pressed="false" role="button" aria-disabled="false"><span class="ui-button-text">View</span></label><input id="btnShowCode" name="mode" value="code" class="ui-helper-hidden-accessible" type="radio"><label id="lblShowCode" for="btnShowCode" aria-pressed="false" class="ui-button ui-widget ui-state-default ui-button-text-only" role="button" aria-disabled="false"><span class="ui-button-text">Code</span></label><input id="btnShowControls" name="mode" value="controls" class="ui-helper-hidden-accessible" type="radio"><label id="lblShowControls" for="btnShowControls" aria-pressed="true" class="ui-button ui-widget ui-state-default ui-button-text-only ui-corner-right ui-state-active ui-state-hover" role="button" aria-disabled="false"><span class="ui-button-text">Controls</span></label></div></div></body>

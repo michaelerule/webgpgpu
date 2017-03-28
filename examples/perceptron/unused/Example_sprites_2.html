@@ -1,0 +1,273 @@
+<html>
+<script src="../../lib/colormaps.js"></script>
+<script src="../../lib/gpgpu.js"></script>
+<script src="../../lib/gpugaussian.js"></script>
+<script src="../../lib/gpurand.js"></script>
+<script src="../../lib/complex_macros.js"></script>
+
+
+<script id="vertices" type="x-shader/x-vertex">
+// (attributes are per-vertex arguments)
+attribute vec2 a_position; // the position of the sprite
+attribute vec2 a_offset;   // a texture coordinate offset
+
+// "varying" variables allow us to pass coordinates on down to the fragment
+// shader (below). These will be interpolated across triangles (if we are
+// drawing triangles). 
+varying vec2 v_offset;
+varying vec2 p_offset;
+varying float p_size;
+void main() {
+    gl_Position  = vec4(a_position, 0.0, 1.0);
+    gl_PointSize = 40.0;
+    v_offset     = a_offset;
+    p_offset     = a_position;
+    p_size     = gl_PointSize;
+}
+</script>
+
+<script id="fragment" type="x-shader/x-fragment">
+precision highp float;
+// Texture offset inherited from the vertex shader
+varying vec2 v_offset;
+
+// Background offset for manual alpha blending
+varying vec2 p_offset;
+varying float p_size;
+
+uniform sampler2D sprites;
+uniform sampler2D background;
+
+#define SPRITE_ATLASS_WIDTH (128.0)
+#define SPRITE_WIDTH (32.0)
+#define SPRITE_ATLASS_WIDTH_SPRITES (4.0)
+#define EDGE_SHARPNESS (100.0)
+
+void main() {
+    // This will be a point in [0,1]x[0,1] denoting the location on the sprite
+    vec2 q = gl_PointCoord;
+    // sprite sheet is 4x4 32x32 sprites
+    vec2 v = v_offset;
+    v.y = (SPRITE_ATLASS_WIDTH_SPRITES-1.0)-v.y;
+    // v_offset should be a row-column index
+    vec2 p=(q+v)*SPRITE_WIDTH/SPRITE_ATLASS_WIDTH;
+    // get sprite pixel data
+    vec4 frgnd = texture2D(sprites,p);
+    float alpha = frgnd.w;
+    float rr = length(q-0.5+1.0/p_size*vec2(.5,-.5));
+    //if (rr>0.2) discard;
+    //if (rr>0.2-1.0/p_size) alpha=0.75*alpha;
+
+    alpha *= 1.0/(1.0+exp(EDGE_SHARPNESS*(rr-(0.2+1.0/p_size))));
+
+    if (alpha<0.15) discard;
+    
+    // Manual alpha blending with background
+    vec2 p4    = (p_offset+1.0)*0.5+p_size/512.0*(vec2(q.x,1.0-q.y)-0.5);
+    vec4 bkgnd = texture2D(background,p4);
+    
+    gl_FragColor = frgnd*alpha + (1.0-alpha)*bkgnd;
+}
+</script>
+
+<script>
+
+$ = function(id) { return document.getElementById(id); }
+
+// This is the main script that will run when the website loads
+function main()
+{
+    console.log('loading');
+
+    // Get our background image
+    tulip = new Image();
+    tulip.src = 'tulip.png';
+    tulip.onload = function(){
+    
+    // Get our sprite image
+    sprites = new Image();
+    sprites.src = 'sprites.png';
+    sprites.onload = function(){
+
+
+    // Retrieve a handle to the canvas element
+    var canvas = $("maincanvas");
+
+    // Try to create a WebGL context on the canvas, abort if it fails
+    //var gl     = canvas.getContext("webgl", { premultipledAlpha: false })
+    //          || canvas.getContext("experimental-webgl", { premultipledAlpha: false });
+    //if (!gl) { alert("No Gl?"); return; }
+    var gl = getRasterGL(canvas);
+
+    // Set clear color and then clear the canvas
+    gl.clearColor(0.5, 0.7, 0.6, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    // Prepare our images
+    var img  = image_texture(gl,sprites);  
+    var img2 = image_texture(gl,tulip);   
+    
+    // Draw the background (crossing fingers!)
+    // this uses a prefab program from the gpgpu.js file
+    var copy = GPUcopy(gl);
+    copy(img2);
+
+    var npoint = 1500; 
+
+    // Make some random particles
+    // The coordinate domain is [-1,1]x[-1,1]
+    var points = new Float32Array(4*npoint);
+    var points2 = new Float32Array(4*npoint);
+    var points3 = new Float32Array(4*npoint);
+    var points4 = new Float32Array(4*npoint);
+    for (var i=0; i<4*npoint; i++) {
+        points[i]=
+        points2[i]=
+        points3[i]=
+        points4[i]=Math.random()*2-1.0;
+    }
+    
+    // Attach our newly created buffer of points to the GPU
+    var pointbuffer = gl.createBuffer();
+
+    /*
+    https://webglfundamentals.org/webgl/lessons/webgl-drawing-multiple-things.html
+    For each thing you want to draw
+    call gl.useProgram for the program needed to draw.
+    setup attributes for the thing you want to draw
+        for each attribute call gl.bindBuffer, gl.vertexAttribPointer, gl.enableVertexAttribArray
+    setup uniforms for the thing you want to draw
+        call gl.uniformXXX for each uniform
+        call gl.activeTexture and gl.bindTexture to assign textures to texture units.
+    call gl.drawArrays or gl.drawElements
+    */
+    
+    // MAKE A NEW PROGRAM TO RENDER SPRITES
+    
+    // We have to manually walk through the compiliation and linking
+    // steps for the vertex (polygons) and fragment (pixel) shader
+    // programs each program must be created, initialized, compiled,
+    // bound to our gl context, and the whole lot must then be linked
+    // and put to use.
+    var program  = gl.createProgram();
+    compileAndBindShader(gl,program,$("vertices").text,gl.VERTEX_SHADER);
+    compileAndBindShader(gl,program,$("fragment").text,gl.FRAGMENT_SHADER);
+    gl.linkProgram(program);
+    gl.useProgram (program);
+
+    // Assign random texture offsets to these points
+    // There are 11 sprites at the moment
+    var offsets = new Float32Array(2*npoint);
+    for (var i=0; i<npoint; i++) {
+        var spriteno = 11;//Math.floor(Math.random()*12)|0;
+        var spritecol = (spriteno|0)&3|0;
+        var spriterow = (spriteno/4)|0;
+        offsets[2*i]=spritecol;
+        offsets[2*i+1]=spriterow;
+    }
+    // Attach our newly created buffer of offsets to the GPU
+    var offsetbuffer = gl.createBuffer();
+    // Binds buffer to a target... I do not know what a target is.
+    gl.bindBuffer(gl.ARRAY_BUFFER, offsetbuffer);
+    // Copy data from the CPU to the GPU
+    gl.bufferData(gl.ARRAY_BUFFER,offsets,gl.STATIC_DRAW);
+    // Now, pass sprite texture offsets
+    offsetLocation = gl.getAttribLocation(program, "a_offset");
+    // Spec says "turns the generic vertex attribute array on at a given index position"
+    // What the hell is "the generic vertex attribute array" ??
+    // Jesus fucking christ the OpenGL API is poorly documented 
+    gl.enableVertexAttribArray(offsetLocation);
+    // A hidden part of gl.vertexAttribPointer is that it binds the 
+    // current ARRAY_BUFFER to the attribute.
+    // The second argument is key to specifying float/vec2/vec3/vec4 (1234)
+    gl.vertexAttribPointer(offsetLocation, 2, gl.FLOAT, false, 0, 0);
+    // Clean up: no longer talking about the offsets buffer
+    // Done
+    //gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+    console.log('starting animation');
+    function render_sprites() {
+         
+        // Binds buffer to a target... I do not know what a target is.
+        //gl.bindBuffer(gl.ARRAY_BUFFER, pointbuffer);
+        // Copy data from the CPU to the GPU
+        gl.bufferData(gl.ARRAY_BUFFER,points,gl.STATIC_DRAW);
+        // First, pass sprite locations
+        // We also need to manually pass arguments to the shader
+        positionLocation = gl.getAttribLocation(program, "a_position");
+        // Spec says "turns the generic vertex attribute array on at a given index position"
+        // What the hell is "the generic vertex attribute array" ??
+        // Jesus fucking christ the OpenGL API is poorly documented 
+        gl.enableVertexAttribArray(positionLocation);
+        // The second argument is key to specifying float/vec2/vec3/vec4 (1234)
+        // A hidden part of gl.vertexAttribPointer is that it binds the 
+        // current ARRAY_BUFFER to the attribute.
+        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+        // Done
+        //gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+        // Set the background texture up as a parameter
+        var texture_unit_index = 0;
+        gl.useProgram (program);
+        gl.uniform1i(gl.getUniformLocation(program,"background"),texture_unit_index);
+        gl.activeTexture(gl.TEXTURE0+texture_unit_index);
+        gl.bindTexture(gl.TEXTURE_2D,img2);
+        gl.useProgram (null);
+
+        // Set the sprite texture up as a parameter
+        var texture_unit_index = 1;
+        gl.useProgram (program);
+        gl.uniform1i(gl.getUniformLocation(program,"sprites"),texture_unit_index);
+        gl.activeTexture(gl.TEXTURE0+texture_unit_index);
+        gl.bindTexture(gl.TEXTURE_2D,img);
+        gl.useProgram (null);
+        
+        // Finally, render scene
+        gl.useProgram (program);
+        gl.drawArrays(gl.POINTS, 0, npoint);
+        gl.useProgram (null);
+    };
+
+
+    var buff0 = newBasicFramebuffer(gl,{wrap:gl.MIRRORED_REPEAT});
+    var buff1 = newBasicFramebuffer(gl,{wrap:gl.MIRRORED_REPEAT});
+
+    console.log('starting animation');
+    var FPS = 105.0;
+    function animate() {
+        setTimeout(function(){
+    
+            copy(img2,buff0);
+            gl.bindFramebuffer(gl.FRAMEBUFFER,buff0);
+            render_sprites();
+            gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+            copy(buff0,buff1);
+            copy(buff1);
+        
+            for (var i=0; i<4*npoint; i++)
+            {
+                points4[i]+=(Math.random()*2-1.0)*15.0/512.0;
+                points3[i]=0.9*points3[i]+0.1*points4[i];
+                points2[i]=0.9*points2[i]+0.1*points3[i];
+                points [i]=0.9*points [i]+0.1*points2[i];
+                
+                x=(((points[i]*0.8+0.1+3.0)%2.0-1.0)-0.1)/0.8;
+                delta = x-points[i]                
+                points[i] += delta;                
+                points4[i] += delta;                
+                points2[i] += delta;                
+                points3[i] += delta;
+            }
+            requestAnimationFrame(animate);
+        },1000./FPS);
+    }
+    animate();
+
+    };
+    };
+}
+</script>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+</body>
+</html>

@@ -1,0 +1,219 @@
+<html>
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+<script src="../lib/gpurand.js"></script>
+<script src="../lib/complex_macros.js"></script>
+
+<script id="huesaturation" type="x-shader/x-fragment">
+// The long way:
+// Convert from RGB to Hue Chroma Itensity space
+// Rotate hue, scale Chroma,
+// Convert back to RGB space
+// This can be done (better) as three composed matrix operations
+uniform sampler2D image;
+uniform float hue;
+uniform float saturation;
+void main() {
+    vec2 q = gl_FragCoord.xy/vec2(W,H); 
+    vec3 c = texture2D(image,q).rgb;
+    float alpha = dot(vec3(2,-1,-1),c);
+    float beta  = dot(vec3(0,sqrt(3.0),-sqrt(3.0)),c);
+    float gamma = dot(vec3(1,1,1),c);
+    float coshue = cos(hue);
+    float sinhue = sin(hue);
+    float newalpha = (coshue*alpha + sinhue*beta)*saturation;
+    float newbeta  = (coshue*beta  - sinhue*alpha)*saturation;
+    vec3 HCrI = vec3(newalpha,newbeta,gamma);
+    float newr = dot(vec3(2,0,2),HCrI);
+    float newg = dot(vec3(-1,sqrt(3.0),2),HCrI);
+    float newb = dot(vec3(-1,-sqrt(3.0),2),HCrI);
+    gl_FragColor = vec4(newr,newg,newb,1.0)/6.0;
+}
+</script>
+
+<script id="huesaturation2" type="x-shader/x-fragment">
+// The short way: we can composit our color space transformations
+// into a single 3x3 matrix and get a much simpler, faster shader
+// unfortunately we need javascript to do the matrix math!
+uniform sampler2D image;
+uniform mat3 hcri_matrix;
+void main() {
+    vec2 q = gl_FragCoord.xy/vec2(W,H); 
+    vec3 c = hcri_matrix*texture2D(image,q).rgb;
+    // handle color overflow
+    float mx = max(max(1.0,c.r),max(c.g,c.b));
+    float mn = min(min(0.0,c.r),min(c.g,c.b));
+    c = (c-mn)/(mx-mn);
+    gl_FragColor = vec4(c,1.0);
+}
+</script>
+
+<script id="huesaturation3" type="x-shader/x-fragment">
+// This version has even fewer multiplications
+uniform sampler2D image;
+uniform vec3 abc;
+void main() {
+    vec2 q = gl_FragCoord.xy/vec2(W,H); 
+    vec3 c = texture2D(image,q).rgb;
+    c = abc.x*c + abc.y*c.gbr + abc.z*c.brg;
+    gl_FragColor = vec4(c,1.0);
+}
+</script>
+
+
+<script id="huesaturation4" type="x-shader/x-fragment">
+// This version handles coordinate conversion
+uniform sampler2D image;
+uniform vec3 abc;
+void main() {
+    vec2 q = gl_FragCoord.xy/vec2(W,H); 
+    vec3 c = texture2D(image,q).rgb;
+    c = abc.x*c + abc.y*c.gbr + abc.z*c.brg;
+    gl_FragColor = vec4(c,1.0);
+}
+</script>
+
+
+<script>
+
+// To use color transform matrices, we'll need to be able to 
+// compose matrix transformations CPUside
+function multiplyMatrices(m1, m2) {
+    var result = [];
+    for (var i = 0; i < m1.length; i++) {
+        result[i] = [];
+        for (var j = 0; j < m2[0].length; j++) {
+            var sum = 0;
+            for (var k = 0; k < m1[0].length; k++) 
+                sum += m1[i][k] * m2[k][j];
+            result[i][j] = sum;
+        }
+    }
+    return result;
+}
+
+// This is the main script that will run when the website loads
+function main()
+{
+    // Get our example image (a tulip)
+    // it has already been cropped to a square (a requirement for loading
+    // images as textures for WebGL)
+    tulip = new Image();
+    tulip.src = 'tulip.png';
+    tulip.onload = function(){
+
+    // Retrieve a handle to the canvas element
+    var canvas = $("maincanvas");
+    
+    // Get canvas location so we can find the mouse location
+    var rect = canvas.getBoundingClientRect();
+
+    // Create a WebGL context on the canvas, abort if fail
+    var gl = getRasterGL(canvas);
+    if (!gl) OUT; 
+    
+    // Monitor the mouse location in texture coordinates
+    point_location = {x:0,y:0};
+    document.onmousemove = function(event) {
+        point_location.x = 2.0*(event.pageX-rect.left)/gl.width -1.0;
+        point_location.y = 2.0*(event.pageY-rect.top )/gl.height-1.0;
+    }
+    
+    // Convert tulip to image 
+    img       = image_texture(gl,tulip);
+    huesaturation  = getRasterProgram(gl,'huesaturation');
+    huesaturation2 = getRasterProgram(gl,'huesaturation2');
+    huesaturation3 = getRasterProgram(gl,'huesaturation3');
+    huesaturation4 = getRasterProgram(gl,'huesaturation4');
+    show      = GPUcopy(gl);
+    show(img);
+    
+    // We can do the whole color transormation with 3x3 matrixes    
+    // Matrix transformation from RGB to hue chroma intensity space
+    var s3 = Math.sqrt(3.0);
+    var c1 = 2.0/s3;
+    /*
+    RGBtoHCRI = 
+        [[2,-1,-1],
+         [0,s3,-s3],
+         [1, 1,1]];
+    // Matrix transformation from hue chroma intensity space to RGB
+    // TODO: compute inverse directly from RGBtoHCRI matrix? 
+    HCRItoRGB = 
+        [[2, 0,2],
+        [-1,s3,2],
+        [-1,s3,2]];
+    for (var i=0; i<3; i++) for (var j=0; j<3; j++) HCRItoRGB[i][j]=HCRItoRGB[i][j]/6.0;
+    */
+    
+    p_x = 0.0;
+    p_y = 0.0;
+    function animate() {
+        setTimeout(function(){
+            p_x = 0.7*p_x+0.3*point_location.x;
+            p_y = 0.7*p_y+0.3*point_location.y;
+            
+            // We can recompute the color transform at every pixel
+            // hue = Math.atan2(p_y,p_x);
+            // saturation = Math.sqrt(p_x*p_x+p_y*p_y)*Math.sqrt(2.0);
+            // huesaturation({image:img,hue:hue,saturation:saturation});
+
+            // Or! we can compute a color transformation on the CPU
+            // and apply that quickly to each pixel
+            // Matrix transformation for a rotation in HCrI space
+            /*
+            hue = Math.atan2(p_y,p_x);
+            saturation = Math.sqrt(p_x*p_x+p_y*p_y)*Math.sqrt(2.0);
+            ch = Math.cos(hue)*saturation;
+            sh = Math.sin(hue)*saturation;
+            HueSat = [
+                [ ch,sh,0],
+                [-sh,ch,0],
+                [ 0 ,0 ,1]];
+            color_matrix = multiplyMatrices(HCRItoRGB,multiplyMatrices(HueSat,RGBtoHCRI));
+            color_matrix = [].concat.apply([], color_matrix);
+            huesaturation2({image:img,hcri_matrix:color_matrix});            
+            */
+            
+            // Or! we can ask Wolfram alpha for the simplification of
+            // {{2,-1,-1},{0,sqrt(3),-sqrt(3)},{1,1,1}}^-1 *
+            // {{x,y,0},{-y,x,0},{0,0,1}} *
+            // {{2,-1,-1},{0,sqrt(3),-sqrt(3)},{1,1,1}}
+            // and get this magical answer that will be faster:
+            
+            var a = (0.25+p_x)/0.75;
+            var x = (0.50-p_x)/1.50;
+            var y = p_y*c1;
+            var b = x+y;
+            var c = x-y;
+            color_matrix = [a,b,c,
+                            c,a,b,
+                            b,c,a]; //ABACAB
+            huesaturation2({image:img,hcri_matrix:color_matrix});
+            
+
+            // Or! we can not that our matrix is toeplitz and try to optimize
+            // even more. 
+            // let w be the color vector RGB we are transforming
+            // new_color = a*w + b*w.gbr + c*w.brg
+            // I don't expect this to be faster though.
+            //var x = (0.50-p_x)/1.50;
+            //var y = p_y*c1;
+            //huesaturation3({image:img,abc:[(0.25+p_x)/0.75,x+y,x-y]});
+            
+            // Finally, here's a version that does all the work in the 
+            // shder, so we can pass hue/chroma parameters 
+            // (TODO)
+            
+            requestAnimationFrame(animate);
+        },1000./120.);
+    }
+    animate();
+    };
+}
+</script>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+</body>
+</html>

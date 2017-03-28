@@ -12,13 +12,15 @@ uniform float contrast;
 #define PIover4 (0.78539816339)
 void main() {
     vec2 q  = gl_FragCoord.xy/vec2(W,H); 
-    vec4 value  = texture2D(image,q);
+    vec4 c  = texture2D(image,q);
     float b = clamp(brightness*2.0/float(W)-1.0,-1.0,1.0);
-    float c = clamp(contrast*2.0/float(H)-1.0,-1.0,1.0);
-    value  = value - value*abs(b);
-    value += b*float(b>0.0);
-    value  = (value-0.5)*tan((c + 1.0)*PIover4)+0.5;
-    gl_FragColor = value;
+    float con = clamp(contrast*2.0/float(H)-1.0,-1.0,1.0);
+    //c  = c - c*abs(b);
+    //c += b*float(b>0.0);
+
+    c  = c+b*0.5+(0.5-c)*abs(b);
+    c  = (c-0.5)*tan((con + 1.0)*PIover4)+0.5;
+    gl_FragColor = c;
 }
 </script>
 

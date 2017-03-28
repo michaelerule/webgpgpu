@@ -13,10 +13,13 @@ precision mediump   float;
 uniform   sampler2D u_palette_1;
 uniform   sampler2D u_palette_2;
 void main() {
-    float index  =  mod(gl_FragCoord.x+gl_FragCoord.y,256.) ;
-    gl_FragColor = texture2D(
-        gl_FragCoord.x<256.? u_palette_1 : u_palette_2,
-        vec2((index + 0.5) / 256.0, 0.5));
+    float index  =  mod(gl_FragCoord.x+gl_FragCoord.y,256.);
+    // Cannot conditionally sample textures
+    // Have to sample both of them?
+    vec2 p  = vec2((index + 0.5) / 256.0, 0.5);
+    vec4 c1 = texture2D(u_palette_1,p);
+    vec4 c2 = texture2D(u_palette_2,p);
+    gl_FragColor = gl_FragCoord.x<256.? c1:c2;
 }
 </script>
 

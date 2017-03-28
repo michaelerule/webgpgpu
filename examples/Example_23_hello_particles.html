@@ -1,0 +1,168 @@
+<html>
+
+<!-- This example doesn't use any libraries, just pure Javascript and WebGL;
+     its meant as a minimal from-scratch example to get us bootstrapping
+-->
+
+<script id="vertices" type="x-shader/x-vertex">
+// (attributes are per-vertex arguments)
+attribute vec2 a_position; // the position of the sprite
+attribute vec2 a_offset; // a texture coordinate offset
+// "varying" variables allow us to pass coordinates on down to the fragment
+// shader (below). These will be interpolated across triangles (if we are
+// drawing triangles). 
+varying vec2 v_offset;
+void main() {
+    gl_Position  = vec4(a_position, 0.0, 1.0);
+    gl_PointSize = 32.0;
+    v_offset     = a_offset;
+}
+</script>
+
+<script id="fragment" type="x-shader/x-fragment">
+precision highp float;
+// Texture offset inherited from the vertex shader
+varying vec2 v_offset;
+void main() {
+    // This will be a point in [0,1]x[0,1] denoting the location on the sprite
+    vec2 p = gl_PointCoord;
+    // v_offset will be a point in [0,1]x[0,1] defining an offset into
+    // larger sprite texture.
+    // if we do this right different sprites will get painted different 
+    // colors
+    p = (v_offset + p)*0.5;
+    p = p*512.0;
+    gl_FragColor = vec4(
+        p.x<256.?1:0,
+        p.y<256.?1:0,
+        mod(floor(p.y/32.),2.),
+        1);
+}
+</script>
+
+<script>
+
+$ = function(id) { return document.getElementById(id); }
+
+// This is the main script that will run when the website loads
+function main()
+{
+    console.log('loading');
+
+    // Retrieve a handle to the canvas element
+    var canvas = $("maincanvas");
+
+    // Try to create a WebGL context on the canvas, abort if it fails
+    var gl     = canvas.getContext("webgl")
+              || canvas.getContext("experimental-webgl");
+    if (!gl) { alert("No Gl?"); return; }
+
+    // Set clear color and then clear the canvas
+    gl.clearColor(0.5, 0.7, 0.6, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    // There are two dimensions we need to worry about
+    // The canvas itself has a "fictional" dimension which is scaled
+    // to the screen dimensions (you can do automatic up or
+    // downsampling by setting this higher or lower than the actual
+    // on-screen size). The webgl context also has its own ideas
+    // about the size of the viewport that must be brought match.
+    canvas.width=canvas.height=512;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    // We have to manually walk through the compiliation and linking
+    // steps for the vertex (polygons) and fragment (pixel) shader
+    // programs each program must be created, initialized, compiled,
+    // bound to our gl context, and the whole lot must then be linked
+    // and put to use.
+    var program  = gl.createProgram();
+    function loadShader(shaderSource) {
+        var shader = shaderSource.type=="x-shader/x-fragment"
+            ? gl.createShader(gl.FRAGMENT_SHADER)
+            : gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource (shader,shaderSource.text);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert(gl.getShaderInfoLog(shader));
+            return null;
+        }
+        gl.attachShader(program, shader);
+    }
+    loadShader($("vertices"));
+    loadShader($("fragment"));
+    
+    /*
+    https://webglfundamentals.org/webgl/lessons/webgl-drawing-multiple-things.html
+    
+    For each thing you want to draw
+
+    call gl.useProgram for the program needed to draw.
+    setup attributes for the thing you want to draw
+        for each attribute call gl.bindBuffer, gl.vertexAttribPointer, gl.enableVertexAttribArray
+    setup uniforms for the thing you want to draw
+        call gl.uniformXXX for each uniform
+        call gl.activeTexture and gl.bindTexture to assign textures to texture units.
+    call gl.drawArrays or gl.drawElements
+    */
+    
+    gl.linkProgram(program);
+    gl.useProgram (program);
+    var npoint = 300;
+    
+    // Make some random particles
+    // The coordinate domain is [-1,1]x[-1,1]
+    var points = new Float32Array(4*npoint);
+    for (var i=0; i<4*npoint; i++)
+        points[i]=Math.random()*2-1.0;
+    console.log(points);    
+    // Attach our newly created buffer of points to the GPU
+    var pointbuffer = gl.createBuffer();
+    // Binds buffer to a target... I do not know what a target is.
+    gl.bindBuffer(gl.ARRAY_BUFFER, pointbuffer);
+    // Copy data from the CPU to the GPU
+    gl.bufferData(gl.ARRAY_BUFFER,points,gl.STATIC_DRAW);
+    // First, pass sprite locations
+    // We also need to manually pass arguments to the shader
+    positionLocation = gl.getAttribLocation(program, "a_position");
+    // Spec says "turns the generic vertex attribute array on at a given index position"
+    // What the hell is "the generic vertex attribute array" ??
+    // Jesus fucking christ the OpenGL API is poorly documented 
+    gl.enableVertexAttribArray(positionLocation);
+    // The second argument is key to specifying float/vec2/vec3/vec4 (1234)
+    // A hidden part of gl.vertexAttribPointer is that it binds the 
+    // current ARRAY_BUFFER to the attribute.
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+
+    // Assign random texture offsets to these points
+    // For now these are binary (0,1)
+    var offsets = new Float32Array(2*npoint);
+    for (var i=0; i<2*npoint; i++) 
+        offsets[i]=Math.floor(Math.random()*2);
+    console.log(offsets);
+    // Attach our newly created buffer of offsets to the GPU
+    var offsetbuffer = gl.createBuffer();
+    // Binds buffer to a target... I do not know what a target is.
+    gl.bindBuffer(gl.ARRAY_BUFFER, offsetbuffer);
+    // Copy data from the CPU to the GPU
+    gl.bufferData(gl.ARRAY_BUFFER,offsets,gl.STATIC_DRAW);
+    // Now, pass sprite texture offsets
+    offsetLocation = gl.getAttribLocation(program, "a_offset");
+    // Spec says "turns the generic vertex attribute array on at a given index position"
+    // What the hell is "the generic vertex attribute array" ??
+    // Jesus fucking christ the OpenGL API is poorly documented 
+    gl.enableVertexAttribArray(offsetLocation);
+    // A hidden part of gl.vertexAttribPointer is that it binds the 
+    // current ARRAY_BUFFER to the attribute.
+    // The second argument is key to specifying float/vec2/vec3/vec4 (1234)
+    gl.vertexAttribPointer(offsetLocation, 2, gl.FLOAT, false, 0, 0);
+    // Clean up: no longer talking about the offsets buffer
+
+    // Finally, render scene
+    gl.drawArrays(gl.POINTS, 0, npoint);
+}
+</script>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+</body>
+</html>

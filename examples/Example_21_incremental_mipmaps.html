@@ -1,0 +1,125 @@
+<html>
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+<script src="../lib/gpurand.js"></script>
+<script src="../lib/complex_macros.js"></script>
+
+<script id="mipmap" type="x-shader/x-fragment">
+// compute mipmap
+// do it recursively
+uniform sampler2D image;
+uniform sampler2D mipmap;
+void main() {
+    vec2 scale = 1.0/vec2(W,H);
+    vec2 q = gl_FragCoord.xy*scale; 
+    // indexing is gonna be crazy
+    // better hope things are more or less a power of two
+    // double our index in the x and y and pull pixels from that
+    // unless it's out of bounds, in which case pull from source image. 
+    if (q.y<0.5)
+        q=q*vec2(1.0,2.0);
+    if (q.x<0.5)
+        q=q*vec2(2.0,1.0);
+    vec4 c1 = texture2D(mipmap,q);
+    vec4 c2 = texture2D(mipmap,q+vec2(scale.x,0    ));
+    vec4 c3 = texture2D(mipmap,q+vec2(0    ,scale.y));
+    vec4 c4 = texture2D(mipmap,q+scale);
+    // Source from original texture if coordinates map out of the recursive
+    // mipmap texture
+    if (q.x>=0.5&&q.y>=0.5) {
+        q  = mod(q*2.0,vec2(1,1));
+        c1 = texture2D(image,q);
+        c2 = texture2D(image,q+vec2(scale.x,0    ));
+        c3 = texture2D(image,q+vec2(0    ,scale.y));
+        c4 = texture2D(image,q+scale);
+    }
+
+    gl_FragColor = vec4(0.25*(c1+c2+c3+c4));
+}
+</script>
+
+
+<script id="hue" type="x-shader/x-fragment">
+uniform sampler2D image;
+uniform vec3 abc;
+void main() {
+    vec2 q = gl_FragCoord.xy/vec2(W,H); 
+    vec3 c = texture2D(image,q).rgb;
+    c = abc.x*c + abc.y*c.gbr + abc.z*c.brg;
+    gl_FragColor = vec4(c,1.0);
+}
+</script>
+
+
+<script>
+// onvert a point (x.y) in hue-chroma space into a linear transform
+// on the RGB color space
+function HCrTransform(p){
+    var c1 = 2.0/Math.sqrt(3.0);
+    var x = (0.50-p.x)/1.50;
+    var y = p.y*c1;
+    return [(0.25+p.x)/0.75,x+y,x-y];
+}
+
+// This is the main script that will run when the website loads
+function main()
+{
+    console.log('running');
+
+    // Get our example image (a tulip)
+    // it has already been cropped to a square (a requirement for loading
+    // images as textures for WebGL)
+    tulip = new Image();
+    tulip.src = 'tulip.png';
+    tulip.onload = function(){
+    // The remainder of the code is passed as a continuation, to be 
+    // run only once the image is loaded. 
+
+    // Retrieve a handle to the canvas element
+    var canvas = $("maincanvas");
+    // Get canvas location so we can find the mouse location
+    var rect = canvas.getBoundingClientRect();
+    // Create a WebGL context on the canvas, abort if fail
+    var gl = getRasterGL(canvas);
+    if (!gl) OUT; //this is a strange bit of code. OUT!?
+
+    // Monitor the mouse location in texture coordinates
+    var rect = canvas.getBoundingClientRect();
+    point_location = {x:0,y:0};
+    p = {x:0,y:0};
+    document.onmousemove = function(event) {
+        point_location.x = 2.0*(event.pageX-rect.left)/gl.width -1.0;
+        point_location.y = 2.0*(event.pageY-rect.top )/gl.height-1.0;
+    }
+
+    img    = image_texture(gl,tulip);
+    mipmap = getRasterProgram(gl,'mipmap');
+    hue    = getRasterProgram(gl,'hue');
+    show   = GPUcopy(gl);
+
+    // Don't blur left side into right side: clamp textures to edge 
+    buf1 = newBasicFramebuffer(gl,{wrap : gl.CLAMP_TO_EDGE});
+    buf2 = newBasicFramebuffer(gl,{wrap : gl.CLAMP_TO_EDGE});
+    buf3 = newBasicFramebuffer(gl,{wrap : gl.CLAMP_TO_EDGE});
+ 
+    function animate() {
+        setTimeout(function(){
+            p.x = 0.7*p.x+0.3*point_location.x;
+            p.y = 0.7*p.y+0.3*point_location.y;
+            hue({image:img,abc:HCrTransform(p)},buf2);
+            mipmap({image:buf2,mipmap:buf1},buf3);
+            show(buf3,buf1);
+            show(buf1);
+            requestAnimationFrame(animate);
+        },1000./250.);
+    }
+    animate();
+
+    };// end onload function for tulip image
+}
+</script>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:1280px;height:960px;"></canvas>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<html>
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+<script src="../lib/gpurand.js"></script>
+<script src="../lib/complex_macros.js"></script>
+
+<script id="showz" type="x-shader/x-fragment">
+// show a 16+16 bit complex field
+// compile with float16_macros, complex_macros
+// TOOD: implement #include float16_macros
+uniform sampler2D data;
+void main() {
+    vec2 scale = 1.0/vec2(W,H);
+    vec2 q = gl_FragCoord.xy*scale; 
+    gl_FragColor = texture2D(data,q);
+    vec2 z = DecodeComplexXY_ZW(texture2D(data,q));
+    gl_FragColor = vec4(z,z);    
+}
+</script>
+
+<script id="heat" type="x-shader/x-fragment">
+// dx = D \nabla^2 x
+// Xn+1 = X_n + dt*D \nabla^2 X_n
+// For stability dt*D should not exceed 0.25
+// In practice, never exceed 0.125
+//
+// 8 bits is not enough to converge to homogeneous solution
+// we use 16 bits
+// compile with float16_macros, complex_macros
+// TOOD: implement #include float16_macros
+#define dt (0.04)
+uniform sampler2D data;
+void main() {
+    vec2 scale = 1.0/vec2(W,H);
+    vec2 q  = gl_FragCoord.xy*scale; 
+    vec2 c1 = DecodeComplexXY_ZW(texture2D(data,q));
+    vec2 c2 = DecodeComplexXY_ZW(texture2D(data,q+vec2(scale.x,0    )));
+    vec2 c3 = DecodeComplexXY_ZW(texture2D(data,q+vec2(0    ,scale.y)));
+    vec2 c4 = DecodeComplexXY_ZW(texture2D(data,q-vec2(scale.x,0    )));
+    vec2 c5 = DecodeComplexXY_ZW(texture2D(data,q-vec2(0    ,scale.y)));
+    vec2 laplacian = c2+c3+c4+c5-4.0*c1;
+    gl_FragColor = EncodeComplexXY_ZW(c1+cmul(vec2(0.5,1),dt*laplacian));
+}
+</script>
+
+<script id="chex" type="x-shader/x-fragment">
+// This shader will be rendered to a texture
+precision mediump float;
+void main() {
+    vec2 scale = 1.0/vec2(W,H);
+    vec2 q  = gl_FragCoord.xy*scale-0.5;
+    //float chex = float(length(q)<0.1);
+
+    float cx = mod(floor(gl_FragCoord.x/64.),2.);
+    float cy = mod(floor(gl_FragCoord.y/64.),2.);
+    float chex = mod(cx+cy,2.);
+    gl_FragColor = EncodeComplexXY_ZW(vec2(chex,chex));
+}
+</script>
+
+<script>
+// This is the main script that will run when the website loads
+function main()
+{
+    console.log('running');
+
+    // Get our example image (a tulip)
+    // it has already been cropped to a square (a requirement for loading
+    // images as textures for WebGL)
+    tulip = new Image();
+    tulip.src = 'tulip.png';
+    tulip.onload = function(){
+
+
+    // Retrieve a handle to the canvas element
+    var canvas = $("maincanvas");
+
+    // Try to create a WebGL context on the canvas, abort if it fails
+    var gl = getRasterGL(canvas);
+
+
+    img    = image_texture(gl,tulip);
+    heat   = getRasterProgram(gl,'heat',[],complex_macros+float16_macros);
+    chex   = getRasterProgram(gl,'chex',[],complex_macros+float16_macros);
+    showz  = getRasterProgram(gl,'showz',[],complex_macros+float16_macros);
+    show   = GPUcopy(gl);
+
+    // Don't blur left side into right side: clamp textures to edge 
+    buf1 = newBasicFramebuffer(gl,{wrap : gl.CLAMP_TO_EDGE});
+    buf2 = newBasicFramebuffer(gl,{wrap : gl.CLAMP_TO_EDGE});
+
+    chex({},buf1);
+    showz({data:buf1});
+        
+    
+    function animate() {
+        setTimeout(function(){
+            for (var i=0; i<10; i++) { 
+                heat({data:buf1},buf2);
+                show(buf2,buf1);
+            }
+            showz({data:buf1});
+            requestAnimationFrame(animate);
+        },1000./25.);
+    }
+    animate();
+    
+    };
+}
+</script>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+</body>
+</html>
