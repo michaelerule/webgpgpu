@@ -1,6 +1,6 @@
 function get_color_transforms(perceptron_model,render_cursors) {
-    conbrite  = render_cursors.get(4);
-    huesat    = render_cursors.get(5);
+    conbrite  = render_cursors.get(3);
+    huesat    = render_cursors.get(4);
     
     // Init default (no-op) color transform
     var ctx, cty, ctz, ctw;
@@ -43,17 +43,19 @@ function get_color_transforms(perceptron_model,render_cursors) {
 
 
 function get_effects_parameters(perceptron_model,render_cursors) {
-    effects   = render_cursors.get(2);
-    gradient  = render_cursors.get(3);
+    effects  = render_cursors.get(5);
+    gradient = render_cursors.get(2);
     // noise motion-blur gradient controls (x2)
-    return [effects.x,(effects.y+1.0)*0.5,gradient.x,gradient.y]; 
+    return [(effects.x+1.0)*0.5,(effects.y+1.0)*0.5,gradient.x,gradient.y]; 
+    //return [0,0,gradient.x,gradient.y]; 
+    //return [0.5,0.5,gradient.x,gradient.y]; 
 }
 
 function get_map_affine_transform(perceptron_model,render_cursors) {
     translate = render_cursors.get(0);
     rotate    = render_cursors.get(1);
     // translation+rotation/scaling
-    return [translate.x,translate.y,rotate.x*2.0,2.0*rotate.y];
+    return [translate.x,translate.y,rotate.x,rotate.y];
 }
 
 function make_fullscreen()
@@ -63,16 +65,30 @@ function make_fullscreen()
     //var wrap = $("wrapper");
     var w = document.body.clientWidth ;
     var h = document.body.clientHeight;
-    var s = Math.max(w,h);
-    canvas.style.width  = s;
-    canvas.style.height = s;
+    //var s = Math.max(w,h);
+    canvas.style.width  = w;
+    canvas.style.height = h;
     //wrap.style.width  = s;
     //wrap.style.height = s;
+    /*
     if (h<s) {
       canvas.style.marginTop = -(s-h)*0.5;
     }
     else if (w<s) {
       canvas.style.marginLeft = -(s-w)*0.5;
     }
+    */
 }
+
+
+function bin2String(array) {
+  var result = "";
+  for (var i = 0; i < array.length; i++) {
+    result += String.fromCharCode(parseInt(array[i], 2));
+  }
+  return result;
+}
+
+
+
 

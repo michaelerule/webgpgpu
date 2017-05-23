@@ -1,0 +1,425 @@
+<html>
+<script src="../../lib/colormaps.js"></script>
+<script src="../../lib/gpgpu.js"></script>
+<script src="../../lib/gpurand.js"></script>
+<script src="../../lib/math.js"></script>
+<script src="../../lib/parameters.js"></script>
+<script src="../../lib/complex_macros.js"></script>
+<script src="../../lib/complex_parser.js"></script>
+<script src="../../lib/sprintf.js"></script>
+<script src="./perceptron_cursors_backup.js"></script>
+<script src="./perceptron_keyboard.js"></script>
+<script src="./perceptron_aux.js"></script>
+<script src="./pako.js"></script>
+
+
+<script id="conformal-perceptron-parameters" type="x-fragment-parameters">
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+// main conformal mapping shader: parameters / header
+//
+// Note: this is not Javascript and these values are not
+// directly accessible to either the main function or the kernel below. 
+// The parameters.js library must be used to parse and handle this parameter 
+// list. This bridges some of the issues with interfacing a weakly typed
+// language like javascript with the strong typing of WebGLSL.
+// input buffers
+//
+// Requires: float16_macros, complex_macros
+//
+sampler2D buff;   // main feedback buffer
+sampler2D aux;    // auxiliary buffer: background images, etc.
+sampler2D noise;  // noise texture
+// Hard coded
+float COMPLEX_PLANE_SCALE; 
+float MAP_PRECISION;
+// free parameters (continuous)
+vec4 wv;      // translation+rotation/scaling
+vec4 effects; // noise intensity, motion blur, gradient parameters
+vec4 ct;      // combined transform hue+saturation+brightness+cont rast+invert
+vec3 hilight_color; // external hilight color parameter
+
+// free parameters (flags)
+// these are bound (#defined) at compile time and do not use up uniform slots
+bool do_noise; 
+bool do_mblur; 
+float noise_level;
+float motion_blur;
+
+// free parameters (discrete/enumerated)
+// these are bound (#defined) at compile time and do not use up uniform slots
+int reflection_mode;     // texture wrap mode on the main (feedback) buffer
+int bounds_mode;         // controls how (or whether) bounds-checking is used
+int aux_mode;            // controlls where out of bounds pixels are taken from
+</script>
+<script id="conformal-perceptron" type="x-shader/x-fragment">
+// -------------------------------------------------------------------
+// main conformal mapping shader: body / code
+//    sample-point: apply complex conformal map to screen-point
+//    self-sample: get screen data (with boundary conditions applied)
+//    aux-sample: get auxiliary buffer data (typically an image texture)
+//    composit: map (self-sample,aux-sample,location) --> sample
+//        this includes a window and gradient defined by target pooint
+//    apply mask/window/gradient 
+//        additive/multiplicative color transforms that depend on 
+//        screen-point (not sample-point)
+//    apply contrast-brightness filter
+//    apply hue-saturation filter
+#define SOFTHRESH(x) (1.0/(1.0+exp(x)))
+#define scale vec2(W<H?W:H,W<H?W:H)
+#define truescale vec2(W,H)
+// Create vector for compensating for non-square aspect ratio
+#define rescale (COMPLEX_PLANE_SCALE*truescale/scale)
+
+void main() {
+
+    /////////////////////////////////////////////////////////////////
+    // Get source location: map screen into [0,1]x[0,1]
+    vec2 p0 = gl_FragCoord.xy/truescale; 
+
+    // Convert to complex plane
+    vec2 z0  = (p0*2.0-1.0)*rescale;
+
+    // Compute radius of on-screen point
+    float r0 = length(z0);
+
+    // Apply complex map (rotate, map, shift)
+    //z0 = cunit(mod(atan(z0.y,z0.x),1.0471975512))*length(z0);
+
+
+    //z0.x = abs(z0.x);
+    //z0.y = abs(z0.y);
+
+    vec2 z1 = complex_map(z0);
+
+    // Apply camera rotate, zoom, pan
+    vec4 wv2 = wv*COMPLEX_PLANE_SCALE;
+    z1 = z1+wv2.xy;
+    z1 = cdiv(z1,wv2.zw);
+
+    // Compute radius of sample point
+    float r1 = length(z1);
+
+    // Convert back to image coordinates
+    vec2 p = (z1/rescale+1.0)*0.5;
+
+    // Handle edge wrapping for main (feedback) buffer
+    vec2 p1;
+    if      (reflection_mode==0) p1 = clamp(p,0.0,1.0);        // Clamped
+    else if (reflection_mode==2) p1 = mod(p,1.0);              // Tiled   
+    else if (reflection_mode==3) p1 = 1.0-abs(mod(p,2.0)-1.0); // Mirrored
+    else if (reflection_mode==1)  // Radial clamp, screen disk
+        p1 = length(p-0.5)<0.5? p : (normalize(z1/rescale)+1.0)*0.5;
+    // Handle edge wrapping & get auxiliary color
+    vec2 p2 = 1.0-abs(mod(p,2.0)-1.0); // Mirrored
+
+    // Other Aux options 
+    // Conditional texture pull (option 0) ONLY works if compiler can optimize
+    // out the tests & branches: aux_mode must be #defined at *compile* time!
+    vec3 cA;
+    if      (aux_mode==0) cA = texture2D(aux,p2).rgb; // aux buffer
+    else if (aux_mode==1) cA = 1.0-texture2D(buff,vec2(0.5,0.5)).rgb; // inverse-centre
+    else if (aux_mode==2) cA = hilight_color; // inverse-centre
+
+    /////////////////////////////////////////////////////////////////
+    // Mapping instructions: texture fetches, etc
+
+    // get conformal mapped color
+    //vec3 c1 = texture2D(buff ,p1).rgb; 
+        
+    // Neighborhood blur test
+    vec2 d  = 1.0/truescale;
+    vec2 dx = vec2(d.x,0);
+    vec2 dy = vec2(0,d.y);
+    vec3 c0 = texture2D(buff ,p1).rgb;
+    vec3 c1 = (c0
+            + texture2D(buff ,p1+dx).rgb
+            + texture2D(buff ,p1-dx).rgb
+            + texture2D(buff ,p1+dy).rgb
+            + texture2D(buff ,p1-dy).rgb)/5.0;
+    // constant blur rate (uniform)
+    //float blur = 1.0;
+    //c1 = c0 + (c1-c0) * blur;
+    float rate = 0.25;
+    vec3 delta = c0-c1;
+    delta = delta*(rate + (1.0-rate)*0.05/(1e-8+length(delta)));
+    c1 = c1 + delta;
+
+    // adaptive blur rate
+    // we have two 3-vectors (c1, the blurred, c0, the local).
+    // we want a fixed distance between these, say 0.01
+    // gaussian prior --> convex combination
+     //float equilibrium = effects.x;
+     //float rate = effects.y;
+     //vec3 delta = c0-c1;
+     //delta = delta*(rate + (1.0-rate)*equilibrium/(1e-8+length(delta)));
+     //c1 = c1 + delta;
+
+
+
+    /// Do color transform
+    c1 = ct.x*c1.rgb+ct.y*c1.gbr+ct.z*c1.brg+ct.w;
+
+    // Bounds test / when to fall back to aux buffer
+    float mask = 0.0;
+    if      (bounds_mode==0) ;                                // No aux 
+    else if (bounds_mode==1) {
+        // Linear gradient that starts at the boundary / out of bounds line
+        vec2 ptemp = clamp(abs(p-0.5)-0.5,0.0,1.0);
+        mask = (ptemp.x + ptemp.y);
+        mask = pow(mask, effects.w+1.1)*((1.0+effects.z));
+    }
+    else if (bounds_mode==2) {
+        // Radial gradient that starts at the boundary / out of bounds line
+        // definded in screen coordinates
+        vec2 ptemp = z1/rescale;
+        mask = clamp(length(ptemp)-1.0,0.0,10.0);
+        mask = pow(mask, effects.w+1.1)*((1.0+effects.z));
+    }
+
+    // Composit color with aux buffer: handles out-of-bounds pixels
+    mask = clamp(mask,0.0,1.0);
+    vec3 c = mask*cA+(1.0-mask)*c1;
+
+    /////////////////////////////////////////////////////////////////
+    // Finishing touches, "special effects"
+
+    // do_blur MUST be a #define for this to work
+    if (do_mblur) c=motion_blur*texture2D(buff,p0).rgb+(1.0-motion_blur)*c; // motion blur
+    // do_noise MUST be a #define for this to work
+    if (do_noise) c=noise_level*(texture2D(noise,p0).rgb-0.5)+c;     // Add noise
+
+    // done
+    gl_FragColor = vec4(c,0);
+}
+</script>
+
+
+<script>
+// preload images; runs before any code gets executed.
+// waits to start main program until all images are available. 
+var images     = {};
+
+var imgdir = './images/'
+
+var auxims = [
+'00000.png', '00100.jpg', '00200.jpg', '00300.jpg', '00400.jpg', '00500.JPG', 
+'00550.jpg', '00600.jpg', '00800.jpg', '00900.jpg', '00941.jpg', '00942.jpg', 
+'00945.png', '00950.jpg', '00955.png', '00960.png', '00965.png', '00970.jpg', 
+'00975.png', '00980.jpg', '00985.png', '01000.jpg', '01100.jpg', '01110.jpg', 
+'01120.jpg', '01130.jpg', '01140.jpg', '01200.jpg', '01300.jpg', '01400.jpg', 
+'01500.jpg', '01600.jpg', '01700.jpg', '01710.jpg', '01720.jpg', '01730.jpg', 
+'01740.jpg', '01800.JPG', '01900.JPG', '02000.jpg', '02100.jpg', '02200.jpg', 
+'02300.jpg', '02400.jpg', '02410.jpg', '02430.jpg', '02500.jpg', '02600.JPG', 
+'02700.jpg', '02800.jpg', '02900.png', '03000.jpg', '03100.jpg', '03200.jpg', 
+'03300.jpg', '03400.jpg', '03500.JPG', '03600.jpg', '03700.jpg', '03800.jpg', 
+'03900.jpg', '03901.jpg', '03902.jpg', '03950.jpg', '04000.jpg', '04001.jpg', 
+'04002.jpg', '04003.jpg', '04004.jpg', '04005.jpg', '04006.jpg', '04100.JPG', 
+'04150.jpg', '04160.jpg', '04170.jpg', '04280.jpg', '04300.jpg', '04400.jpg', 
+'04500.jpg', '04600.jpg', '04830.jpg', '04831.jpg', '04900.jpg', '04905.jpg', 
+'04907.png', '04910.jpg', '04915.jpg', '04920.jpg', '04925.jpg', '04930.jpg', 
+'04965.jpg', '04970.jpg', '04975.jpg', '04980.jpg', '04983.jpg', '04984.jpg', 
+'04986.jpg', '04990.jpg', '19.jpg', '27.jpg', '28.jpg', '30.jpg', '38.jpg', 
+'42.jpg', '53.jpg', '_00000.jpg', 'ic2118_ssro.jpg', 'marslayers_hirise.jpg', 
+'ngc253wide_hst.jpg', 'ngc3324_hst.jpg', 'ngc346_hst_big.jpg', 
+'NGC55_gendler_c800.jpg', 'ngc602_hst_large.jpg', 'NGC6357_schedler.jpg', 
+'ngc7129_fera.jpg', 's136crop_benintende.jpg', 'spicules_sst_big.jpg', 
+'trumpler16b_hst.jpg', 'Tse2008_200_mo1_big.jpg', 'w5wide_spitzer_big.jpg'];
+
+var imfiles = ['tulip.png','sprites.png'];
+
+function load_images() {
+    console.log('loading images');
+    var ims = []
+    for (var i=0;i<imfiles.length;i++) ims[i] = imfiles[i];
+    for (var i=0;i<auxims.length ;i++) ims[imfiles.length+i]=imgdir+auxims[i];
+    var loaded=0;
+    for (var i=0;i<ims.length;i++) {
+        var temp = new Image();
+        temp.onload = function(){
+            loaded += 1;
+            if (loaded==imfiles.length) main();
+        };
+        images[ims[i]] = temp;
+        temp.src       = ims[i];
+    }
+    console.log('waiting for loading to finish');
+}
+
+// This is the main script that will run when the website loads
+function main()
+{
+    console.log('starting');
+    var tulip   = images['tulip.png'];
+    var sprites = images['sprites.png'];
+
+    // Retrieve a handle to the canvas element
+    var canvas = $("maincanvas");
+
+    // See perceptron_aux.js    
+    make_fullscreen();
+
+    // Create a WebGL context on the canvas, abort if fail
+    var gl = getRasterGL(canvas); if (!gl) OUT;
+ 
+    
+    // Model (as in model-view-controller)
+    model = {
+        COMPLEX_PLANE_SCALE : 2.0,  // Size of complex domain
+        MAP_PRECISION: 32.0,
+        REMAP_RATE  : 0.1,
+        do_noise    : true,
+        do_mblur    : true, 
+        do_conbrite : true,
+        do_huesat   : true,
+        do_invert   : true,
+        reflection_mode : 0,
+        bounds_mode : 0,
+        map:'z',
+        map_index:0,
+        aux_mode:0,
+        noise_level:0, // float in [0,1]
+        motion_blur:0.2, // float in [0,1]
+        accent_image:'tulip.png',
+    };
+
+    
+    // Images to texture
+    var sprites_img    = image_texture(gl,sprites); 
+    var background_img = image_texture(gl,images[imgdir + auxims[0]]); 
+
+    // Initialize GPU shader functions
+    console.log('initializing shaders');
+    var copy   = GPUcopy(gl);
+    
+    // Function to increment images
+    next_image = function() {  
+        var i = (auxims.indexOf(model.accent_image)+1)%auxims.length;
+        model.accent_image = auxims[i];
+        var img = images[imgdir + model.accent_image];
+        var old = background_img;
+        background_img = image_texture(gl,img);
+        gl.deleteTexture(old); 
+        console.log('Loaded '+img);
+    }
+    
+    // Initialize memory buffers
+    console.log('initializing buffers');
+    var buff0 = newBasicFramebuffer(gl,{wrap:gl.MIRRORED_REPEAT});
+    var buff1 = newBasicFramebuffer(gl,{wrap:gl.MIRRORED_REPEAT});
+    var buff2 = newBasicFramebuffer(gl,{wrap:gl.MIRRORED_REPEAT});
+
+    console.log('initializing buffers done');
+
+    // recompute the conformal map
+    function compile_map(model) {
+        // Parse complex map
+        map_string = model.map;
+        //console.log('COMPILING '+map_string);
+        var map = math.parse(map_string).transform(complex_macro_transform)._toString();
+        return complex_map = "\n\n#define complex_map(z) ("+map+")\n\n";
+    }
+    
+    // Some parameters should be bound at compile time
+    var conformal_map = null;
+    function compile_kernel() {
+        var complex_map = compile_map(model);
+        // add complex_map if computing map in shader, see compile_map
+        var header      = float16_macros + complex_macros + complex_map;
+        var p_header    = compile_bind(
+            get_parameters('conformal-perceptron-parameters'),model)[0];
+        conformal_map = getRasterProgram(gl,'conformal-perceptron',[],header+p_header);
+    }
+    compile_kernel();
+    model.compile_kernel = compile_kernel;
+    bind_perceptron_key_listener(model);
+    
+    // Prepare GPU random number generator
+    console.log('initializing RNG');
+    var gpurng = GPUNoise(gl);
+    var noise  = newBasicFramebuffer(gl,{wrap:gl.REPEAT});
+    gpurng.randomize(noise);
+    console.log('initializing RNG done');
+
+    // Initialize cursor handler program
+    var npoint = 6; // Number of cursors (no more than 11)
+    var ndots  = 5; // Number of trailing dots per cursor, plus one
+    var cursors = sprite_renderer(gl,npoint,ndots,canvas,0.35);
+
+    // Set initial conditions
+    console.log('initial state');
+    copy(background_img,buff0);
+    copy(background_img,buff2);
+
+    ////////////////////////////////////////////////////////////////////
+    // MAIN RENDER LOOP
+    console.log('starting animation');
+    var FPS = 25.0;
+    function animate() {
+        setTimeout(function(){
+            // draw new "random" numbers (second argument is a scratch buffer)
+            if (model.do_noise) gpurng(noise,buff2);
+            
+            // these helper functions are defined in perceptron_aux.js
+            // shader parameters are combined into as few vec4s as possible
+            // this is because each uinform takes up a vec4 slot, even if
+            // it is a scalar. There's a bug in Safari that shows up for even
+            // modest numbers of uniforms and local variables, so we must be
+            // efficient with parameters (shader arguments). 
+            var map_affine      = get_map_affine_transform(model,cursors);
+            var effects_params  = get_effects_parameters  (model,cursors);
+            var color_transform = get_color_transforms    (model,cursors);
+            
+            console.log('effects_params:',effects_params);
+
+            // Apply conformal perceptron
+            conformal_map({
+                 buff:buff1,
+                 aux:background_img,
+                 noise:noise,
+                 effects:effects_params,// special effects parameters
+                 ct:color_transform,    // color affine transform
+                 hilight_color:[1,1,1],
+                 wv:map_affine,         // map affine transform
+            },buff2);
+            copy(buff2,buff1);
+            
+            // Render cursors on top
+            cursors(buff2,sprites_img,buff1,model);
+
+            // Show result on screen
+            copy(buff1);
+            
+            if (perceptron_running)
+                requestAnimationFrame(animate);
+        },1000./FPS);
+    }
+
+    start_perceptron = function() {    
+        // Change canvas pointer style
+        canvas.style.cursor = "none";
+        perceptron_running = true;
+        animate();
+    }
+    stop_perceptron = function() { 
+        // Change canvas pointer style
+        canvas.style.cursor = "default";
+        perceptron_running = false;
+    }
+    pause_perceptron = function() { 
+        // Change canvas pointer style
+        perceptron_running = false;
+    }
+
+    start_perceptron();
+
+
+}
+//<canvas id='maincanvas' style="width:640px;height:480px;"></canvas>
+//<canvas id='maincanvas' style="width:800px;height:800px;"></canvas>
+//<canvas id='maincanvas' style="width:1280px;height:800px;"></canvas>
+</script>
+<body onload="javascript:load_images()" style="margin:0;overflow:hidden;">
+<canvas id='maincanvas' style="width:1280px;height:800px;"></canvas>
+</body>
+</html>

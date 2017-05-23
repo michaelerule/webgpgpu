@@ -1,0 +1,232 @@
+<html>
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+<script src="../lib/gpurand.js"></script>
+<script src="../lib/sprintf.js"></script>
+<script src="../lib/complex_macros.js"></script>
+
+<script id="gaussian_noise" type="x-shader/x-fragment">
+// Generate gaussian noise with mean and covariance
+#define tau 6.283185307179586  
+uniform sampler2D noise;  
+uniform float     sigma;  
+uniform float     mean;
+void main() {  
+  vec4 n  = texture2D(noise,gl_FragCoord.xy/vec2(W,H));  
+  vec2 R  = sqrt(-2.*log(1e-9+n.rb));  
+  vec2 T  = tau*n.ga;  
+  gl_FragColor = vec4(R*cos(T),R*sin(T))*sigma + mean + 0.5;
+}
+</script>
+
+<script id="statmap" type="x-shader/x-fragment">
+// compute statistics recursively
+// 
+// given: mean, sigma of two variables, how do they combine? 
+// means is straightforward
+// standard deviation is harder due to numeric stability
+// 
+// average variances then add average variance of mean
+// 
+// 
+// need to make better use of dynamic range
+
+#define RESCALE 8.0
+
+uniform sampler2D image;
+uniform sampler2D mipmap;
+
+vec4 Round( vec4 v ) {
+  return floor(255.0*v+0.5)/255.0;
+}
+float averageRGB(vec4 c1,vec4 c2,vec4 c3,vec4 c4) {
+    vec4 average = (c1+c2+c3+c4)*0.25;
+    return (average.r + average.g + average.b)/3.0;
+}
+void main() {
+    vec2 scale = 1.0/vec2(W,H);
+    vec2 p = gl_FragCoord.xy*scale; 
+    vec2 q = p;
+    // indexing is gonna be crazy
+    // better hope things are more or less a power of two
+    // double our index in the x and y and pull pixels from that
+    // unless it's out of bounds, in which case pull from source image. 
+    if (q.y<0.5)
+        q=q*vec2(1.0,2.0);
+    if (q.x<0.5)
+        q=q*vec2(2.0,1.0);
+
+    // We aren't supposed to be able to do texture reads inside conditional
+    // branches, and yet somehow the code below works? 
+    vec4 c1,c2,c3,c4;
+    float mean,variance,std;
+
+    if (q.x>=0.5&&q.y>=0.5) {
+        // Source from original texture if coordinates map out of the recursive
+        // mipmap texture
+        q  = mod(q*2.0,vec2(1,1));
+        c1 = texture2D(image,q);
+        c2 = texture2D(image,q+vec2(scale.x,0    ));
+        c3 = texture2D(image,q+vec2(0    ,scale.y));
+        c4 = texture2D(image,q+scale);
+        // reading from raw image, we need to compute a few things by hand
+        mean = averageRGB(c1,c2,c3,c4);
+        // compute the squared deviations
+        // largest allowed deviation is 3/4
+        // largest squared deviation will be 9/16
+        // largest average squared deviation smaller than this though
+        // about 1/4
+        c1 = c1-mean;
+        c2 = c2-mean;
+        c3 = c3-mean;
+        c4 = c4-mean;
+        // average squared deviations
+        variance = (averageRGB(c1*c1,c2*c2,c3*c3,c4*c4));
+        std = sqrt(variance)*RESCALE;
+        variance *= RESCALE*RESCALE;
+    } else {
+        // These will store recursively computed means, mean-squares
+        vec4 c1 = texture2D(mipmap,q);
+        vec4 c2 = texture2D(mipmap,q+vec2(scale.x,0    ));
+        vec4 c3 = texture2D(mipmap,q+vec2(0    ,scale.y));
+        vec4 c4 = texture2D(mipmap,q+scale);
+        // means are easy
+        vec4 c  = (c1+c2+c3+c4)*0.25;
+        mean = c.x;
+        // aveage the variances
+        //float meanvariance = c.y;
+        float meanvariance = (c1.z*c1.z+c2.z*c2.z+c3.z*c3.z+c4.z*c4.z)*0.25;
+        // compute the variance of the means
+        float m1 = c1.x-mean;
+        float m2 = c2.x-mean;
+        float m3 = c3.x-mean;
+        float m4 = c4.x-mean;
+        float varmeans = (m1*m1+m2*m2+m3*m3+m4*m4)*0.25;
+        variance = meanvariance + varmeans*RESCALE*RESCALE;
+        std = sqrt(variance);
+    }
+    gl_FragColor = Round(vec4(mean,variance,std,0));
+}
+</script>
+
+
+<script id="hue" type="x-shader/x-fragment">
+uniform sampler2D image;
+uniform vec3 abc;
+void main() {
+    vec2 q = gl_FragCoord.xy/vec2(W,H); 
+    vec3 c = texture2D(image,q).rgb;
+    c = abc.x*c + abc.y*c.gbr + abc.z*c.brg;
+    gl_FragColor = vec4(c,1.0);
+}
+</script>
+
+
+<script>
+// onvert a point (x.y) in hue-chroma space into a linear transform
+// on the RGB color space
+function HCrTransform(p){
+    var c1 = 2.0/Math.sqrt(3.0);
+    var x = (0.50-p.x)/1.50;
+    var y = p.y*c1;
+    return [(0.25+p.x)/0.75,x+y,x-y];
+}
+
+// This is the main script that will run when the website loads
+function main()
+{
+    console.log('running');
+
+    // Retrieve a handle to the canvas element
+    var canvas   = $("maincanvas");
+    var statinfo = $("statinfo");
+
+    // Get canvas location so we can find the mouse location
+    var rect = canvas.getBoundingClientRect();
+    // Create a WebGL context on the canvas, abort if fail
+    var gl = getRasterGL(canvas);
+    if (!gl) OUT; //this is a strange bit of code. OUT!?
+
+    // Monitor the mouse location in texture coordinates
+    var rect = canvas.getBoundingClientRect();
+    point_location = {x:0,y:0};
+    p = {x:0,y:0};
+    document.onmousemove = function(event) {
+        point_location.x = 2.0*(event.pageX-rect.left)/gl.width -1.0;
+        point_location.y = 2.0*(event.pageY-rect.top )/gl.height-1.0;
+    }
+
+    // Prepare GPU random number generator
+    console.log('initializing RNG');
+    var gpurng = GPUNoise(gl);
+    var noise  = newBasicFramebuffer(gl,{wrap:gl.REPEAT});
+    gpurng.randomize(noise);
+    console.log('initializing RNG done');
+
+    // Create shader programs
+    statmap = getRasterProgram(gl,'statmap');
+    hue    = getRasterProgram(gl,'hue');
+    gnoise = getRasterProgram(gl,'gaussian_noise');
+    show   = GPUcopy(gl);
+
+    // Don't blur left side into right side: clamp textures to edge 
+    buf1 = newBasicFramebuffer(gl,{wrap : gl.CLAMP_TO_EDGE});
+    buf2 = newBasicFramebuffer(gl,{wrap : gl.CLAMP_TO_EDGE});
+    buf3 = newBasicFramebuffer(gl,{wrap : gl.CLAMP_TO_EDGE});
+ 
+    var pixdata = new Uint8Array(4);
+
+    function animate() {
+        setTimeout(function(){
+            p.x = 0.9*p.x+0.1*point_location.x;
+            p.y = 0.9*p.y+0.1*point_location.y;
+            var sigma = (p.x+1)*0.125;
+            var mean  = p.y*0.5;
+
+            // draw random numbers
+            gpurng(noise,buf2);
+            
+            // render noise (gaussian) to screen
+            gnoise({noise:noise,sigma:sigma,mean:mean},buf2);
+            show(buf2);
+
+            statmap({image:buf2,mipmap:buf1},buf3);
+            show(buf3,buf1);
+            show(buf1);
+
+            var info = "Input "
+            info += '</br>'+"mean = "+mean;
+            info += '</br>'+"sigma = "+sigma;
+            info += '</br>'+"var = "+sigma*sigma;
+            console.log(info);
+
+            gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixdata);
+            info += '</br>' + pixdata
+
+            var RESCALE = 4.0;
+
+            var estmean   = pixdata[0]*1.0/255.0;
+            var estvar    = pixdata[1]*1.0/255.0/RESCALE/RESCALE;
+            var estsigma  = pixdata[2]*1.0/255.0/RESCALE;
+
+            info += '</br>'+'estimated mean   = '+(estmean-0.5);
+            info += '</br>'+'estimated sigma  = '+estsigma;
+            info += '</br>'+'estimated var    = '+estvar;
+
+            statinfo.innerHTML=info;
+
+            requestAnimationFrame(animate);
+        },1000./25.);
+    }
+    console.log('Animating...');
+    animate();
+
+}
+</script>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+</br>
+<div id='statinfo'>Stat info goes here</div>
+</body>
+</html>
