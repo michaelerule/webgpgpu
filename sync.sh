@@ -10,6 +10,9 @@
 # Run this script from it's local directory
 #
 
+cat .gitignore | awk "/^[.\*]/" | sed 's/"/"\\""/g;s/.*/"&"/' |  xargs -E '' -I{} git rm -rf --cached {}
+git rm -rf --cached *.pyc
+
 ./maketree.py
 shopt -s extglob
 ./go
