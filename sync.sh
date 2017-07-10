@@ -10,6 +10,7 @@
 # Run this script from it's local directory
 #
 
+./maketree.py
 shopt -s extglob
 ./go
 git add *
