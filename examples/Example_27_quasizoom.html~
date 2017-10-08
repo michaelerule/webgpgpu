@@ -11,7 +11,6 @@
 uniform float basescale;
 uniform float aspect;
 uniform float phasebias;
-uniform float huebias;
 #define NWAVE (5)
 #define NSCALE (7)
 #define PI (3.14159265359)
@@ -23,59 +22,26 @@ void main() {
     q -= vec2(0.5);
     q.x *= aspect;
     q.y /= aspect;
-    
-    vec2 sum   = vec2(0.0);
+    float sum   = 0.0;
     float scale = basescale;
     float norm  = 0.0;
-    
     for (int i=0; i<NSCALE; i++) {
-        // Gaussian envelope
         float weight = exp(-0.5*pow((log2(scale)-MEAN)/SIGMA,2.0));
         for (int k=0;k<NWAVE;k++) {
-            // Loop over all waves
             float phi = float(k)*PI/float(NWAVE);
             float psi = 
                     (phasebias+mod(exp(PI*float(k)),1.0))*scale
                     +(cos(phi)*q.x+sin(phi)*q.y)*(2.0*PI)*NBANDS*scale;
-            sum += weight*vec2(cos(psi),sin(psi));
+            sum += weight*cos(psi);//vec2(cos(psi),sin(psi));
         }
         scale *= 2.0;
         norm += weight;
     }
-    
     sum /= norm*float(NWAVE);
-    
-    // Use McAllester shading
-    // http://mainisusuallyafunction.blogspot.co.uk/2011/10/quasicrystals-as-sums-of-waves-in-plane.html
-    float s = (sum.x*0.5+1.0)*float(NWAVE);
+    float s = (sum*0.5+1.0)*float(NWAVE);
     s = mod(s,1.0);
     float brightness = pow(2.0*(s>0.5?1.0-s:s),1.1);
-    
-    // Pseudo McAllester shading
-    //float brightness = sin((sum.x*0.5+1.0)*float(NWAVE)*2.0*PI)*0.5+0.5;
-    
-    // Rule shading
-    //float brightness = pow(sum.x*0.5+0.5+0.3,3.0);
-    //float brightness = (exp(sum.x*2.4)-0.13)/7.1;
-    vec3 c2 = vec3(brightness);
-    
-    // Hue wheel coloring
-    /*
-    float brightness = 1.0;
-    float hue = (atan(sum.y,sum.x)+huebias);
-    float ch = cos(hue);
-    float sh = sin(hue);
-    float Q1 = sh/sqrt(3.0);
-    float Q2 = (1.0-ch)/3.0;
-    sum = sum/length(sum);
-    vec4  c  = vec4(0,1,0.7,1);
-    vec3  d  = c.rgb-c.brg;
-    float r1 = Q2*(d.g-d.r)-Q1*d.b+c.r;
-    float Z  = Q2*(d.b-d.r)+Q1*d.g;
-    vec3 c2  = vec3(r1,c.g+Z+c.r-r1,c.b-Z)*brightness;
-    */
-    
-    gl_FragColor = vec4(c2,0.0);
+    gl_FragColor = vec4(vec3(brightness),0.0);
 }
 </script>
 
@@ -87,33 +53,24 @@ function main()
     // quieter audio
     var backgroundAudio=$("audio");
     backgroundAudio.volume=0.25;
-
     // Create a WebGL context on the canvas, abort if fail
     var canvas = $("maincanvas");
     var gl = getRasterGL(canvas);
     if (!gl) OUT; 
-
     quasi = getRasterProgram(gl,'quasi');
-
     var scale = 1.0;
     var phase = 0.0;
-    var hue   = 0.0;
     function animate() {
         setTimeout(function(){
-            scale = (scale*Math.pow(2,1.0/300));
+            scale = (scale*Math.pow(2,1.0/200));
             if (scale>=2.0) scale = 1.0;
             phase = phase+0.001;
             if (phase>6.28318530718) phase-=6.28318530718;
-            hue = hue+6.28318530718-0.3;
-            if (hue>6.28318530718) hue-=6.28318530718;
-            
-            w = canvas.scrollWidth ||canvas.width;
-            h = canvas.scrollHeight||canvas.height;
-            
+            var w = canvas.scrollWidth ||canvas.width;
+            var h = canvas.scrollHeight||canvas.height;
             quasi({
                 basescale:scale,
                 phasebias:phase,
-                hue:hue,
                 aspect:Math.sqrt(w/h)});
             requestAnimationFrame(animate);
         },1000./20.);
@@ -132,12 +89,10 @@ function togglepopup() {
 </script>
 <body onload="javascript:main()" style="margin:0px;padding:0px;">
 <canvas id='maincanvas' style="width:100%;height:100%;margin:0px;padding:0px;"></canvas>
-<div style="z-index: 2147483647; position: fixed; top: 1em; right: 1em;  background-color: rgba(255,255,255,0.9); padding: 10px; fontsize:10;" id="popup">(c) 2017 M.Rule (c.f. 
-<a href="http://wealoneonearth.blogspot.co.uk/2011/11/visual-analogue-of-shepard-tone.html">1, </a>
-<a href="http://spacecollective.org/michaelerule/5810/Quasicrystal-Diffraction-Patterns">2</a>)
-</br>
-Using McAllester shading
-<a href="http://mainisusuallyafunction.blogspot.co.uk/2011/10/quasicrystals-as-sums-of-waves-in-plane.html">(McAllester 2011)</a>
+<div style="z-index: 2147483647; position: fixed; top: 1em; right: 1em;  background-color: rgba(255,255,255,0.9); padding: 10px; fontsize:10;" id="popup"> 
+<a href="http://wealoneonearth.blogspot.co.uk/2011/11/visual-analogue-of-shepard-tone.html">1</a>
+<a href="http://spacecollective.org/michaelerule/5810/Quasicrystal-Diffraction-Patterns">2</a>
+<a href="http://mainisusuallyafunction.blogspot.co.uk/2011/10/quasicrystals-as-sums-of-waves-in-plane.html">3</a>
 </br>
 Audio <a href="https://en.wikipedia.org/wiki/File:DescenteInfinie.ogg">via Wikimedia Commons</a>
 </br>
