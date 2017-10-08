@@ -1,5 +1,6 @@
-
 <html>
+<!-- based on http://wealoneonearth.blogspot.co.uk/2011/11/visual-analogue-of-shepard-tone.html -->
+
 <script src="../lib/colormaps.js"></script>
 <script src="../lib/gpgpu.js"></script>
 <script src="../lib/gpugaussian.js"></script>
@@ -15,7 +16,7 @@ uniform float huebias;
 #define NSCALE (7)
 #define PI (3.14159265359)
 #define NBANDS (float(4))
-#define SIGMA (float(0.6))
+#define SIGMA (float(0.5))
 #define MEAN (float(3.0))
 void main() {
     vec2 q = gl_FragCoord.xy/vec2(W,H); 
@@ -43,8 +44,16 @@ void main() {
     }
     
     sum /= norm*float(NWAVE);
-    // McAllester shading
-    float brightness = sin((sum.x*0.5+1.0)*float(NWAVE)*2.0*PI)*0.5+0.5;
+    
+    // Use McAllester shading
+    // http://mainisusuallyafunction.blogspot.co.uk/2011/10/quasicrystals-as-sums-of-waves-in-plane.html
+    float s = (sum.x*0.5+1.0)*float(NWAVE);
+    s = mod(s,1.0);
+    float brightness = pow(2.0*(s>0.5?1.0-s:s),1.1);
+    
+    // Pseudo McAllester shading
+    //float brightness = sin((sum.x*0.5+1.0)*float(NWAVE)*2.0*PI)*0.5+0.5;
+    
     // Rule shading
     //float brightness = pow(sum.x*0.5+0.5+0.3,3.0);
     //float brightness = (exp(sum.x*2.4)-0.13)/7.1;
@@ -75,6 +84,10 @@ void main() {
 // This is the main script that will run when the website loads
 function main()
 {
+    // quieter audio
+    var backgroundAudio=$("audio");
+    backgroundAudio.volume=0.25;
+
     // Create a WebGL context on the canvas, abort if fail
     var canvas = $("maincanvas");
     var gl = getRasterGL(canvas);
@@ -87,7 +100,7 @@ function main()
     var hue   = 0.0;
     function animate() {
         setTimeout(function(){
-            scale = (scale*Math.pow(2,1.0/120));
+            scale = (scale*Math.pow(2,1.0/300));
             if (scale>=2.0) scale = 1.0;
             phase = phase+0.001;
             if (phase>6.28318530718) phase-=6.28318530718;
@@ -98,17 +111,43 @@ function main()
             h = canvas.scrollHeight||canvas.height;
             
             quasi({
-                basescale:1.0/scale,
+                basescale:scale,
                 phasebias:phase,
                 hue:hue,
                 aspect:Math.sqrt(w/h)});
             requestAnimationFrame(animate);
-        },1000./30.);
+        },1000./20.);
     }
     animate();
+}
+
+function togglepopup() {
+    // Get handle to help menu
+    var popup = $("popup");
+    if (popup.style.display==="none")
+        popup.style.display='';
+    else popup.style.display = "none";
+    popup.style.cursor = "pointer";
 }
 </script>
 <body onload="javascript:main()" style="margin:0px;padding:0px;">
 <canvas id='maincanvas' style="width:100%;height:100%;margin:0px;padding:0px;"></canvas>
+<div style="z-index: 2147483647; position: fixed; top: 1em; right: 1em;  background-color: rgba(255,255,255,0.9); padding: 10px; fontsize:10;" id="popup">(c) 2017 M.Rule (c.f. 
+<a href="http://wealoneonearth.blogspot.co.uk/2011/11/visual-analogue-of-shepard-tone.html">1, </a>
+<a href="http://spacecollective.org/michaelerule/5810/Quasicrystal-Diffraction-Patterns">2</a>)
+</br>
+Using McAllester's shading
+<a href="http://mainisusuallyafunction.blogspot.co.uk/2011/10/quasicrystals-as-sums-of-waves-in-plane.html">(McAllester 2011)</a>
+</br>
+Audio <a href="https://en.wikipedia.org/wiki/File:DescenteInfinie.ogg">via Wikimedia Commons</a>
+</br>
+<audio controls autoplay="autoplay" loop="loop" id="audio">
+  <source src="DescenteInfinie.ogg" type="audio/ogg">
+  <source src="DescenteInfinie.mp3" type="audio/mpeg">
+  Your browser does not support the audio element.
+</audio> 
+</br>
+<a onclick="togglepopup();" href="#">hide this overlay</a>
+</div>
 </body>
 </html>
