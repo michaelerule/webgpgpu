@@ -1,0 +1,68 @@
+<html>
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+<script src="../lib/gpurand.js"></script>
+<script src="../lib/complex_macros.js"></script>
+
+<script id="quasi" type="x-shader/x-fragment">
+uniform float Q1;
+uniform float Q2;
+#define NWAVE (5)
+#define NSCALE (7)
+#define PI (3.14159265359)
+#define NBANDS (float(5))
+#define SIGMA (float(0.6))
+#define MEAN (float(3.0))
+void main() {
+    vec2 q     = gl_FragCoord.xy/vec2(W,H); 
+    q -= vec2(0.5);
+    
+    float sum   = 0.0;
+    float scale = 1.0*Q1;
+    float norm  = 0.0;
+    for (int i=0; i<NSCALE; i++) {
+        // Gaussian envelope
+        float weight = exp(-0.5*pow((log2(scale)-MEAN)/SIGMA,2.0));
+        for (int k=0;k<NWAVE;k++) {
+            // Loop over all waves
+            float phi = float(k)*PI/float(NWAVE);
+            sum += weight*(cos(mod(exp(PI*float(k)),1.0)*scale+(cos(phi)*q.x+sin(phi)*q.y)*(2.0*PI)*NBANDS*scale)*0.5+0.5);
+        }
+        scale *= 2.0;
+        norm += weight;
+    }
+    sum /= norm*float(NWAVE);
+    gl_FragColor = vec4(vec3(1.0/(1.0+exp(5.0-10.0*sum))),0.0);
+}
+</script>
+
+
+<script>
+// This is the main script that will run when the website loads
+function main()
+{
+    // Create a WebGL context on the canvas, abort if fail
+    var gl = getRasterGL($("maincanvas"));
+    if (!gl) OUT; 
+
+    quasi = getRasterProgram(gl,'quasi');
+
+    var scale = 1.0;
+    function animate() {
+        setTimeout(function(){
+            scale = (scale*Math.pow(2,1.0/60));
+            if (scale>=2.0) scale = 1.0;
+            quasi({
+                Q1:1.0/scale,
+                Q2:scale});
+            requestAnimationFrame(animate);
+        },1000./30.);
+    }
+    animate();
+}
+</script>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+</body>
+</html>
