@@ -83,6 +83,18 @@ function main()
 
     // Create a WebGL context on the canvas, abort if fail
     var canvas = $("maincanvas");
+
+    // go full-screen
+    if (canvas.requestFullscreen) {
+	    canvas.requestFullscreen();
+    } else if (canvas.webkitRequestFullscreen) {
+	    canvas.webkitRequestFullscreen();
+    } else if (canvas.mozRequestFullScreen) {
+	    canvas.mozRequestFullScreen();
+    } else if (canvas.msRequestFullscreen) {
+	    canvas.msRequestFullscreen();
+    }
+
     var gl = getRasterGL(canvas);
     if (!gl) OUT; 
 
@@ -110,6 +122,8 @@ function main()
         },1000./20.);
     }
     animate();
+    
+
 }
 
 function togglepopup() {
@@ -119,6 +133,21 @@ function togglepopup() {
         popup.style.display='';
     else popup.style.display = "none";
     popup.style.cursor = "pointer";
+}
+
+function fullscreen() {
+    // Create a WebGL context on the canvas, abort if fail
+    var canvas = $("maincanvas");
+    // go full-screen
+    if (canvas.requestFullscreen) {
+	    canvas.requestFullscreen();
+    } else if (canvas.webkitRequestFullscreen) {
+	    canvas.webkitRequestFullscreen();
+    } else if (canvas.mozRequestFullScreen) {
+	    canvas.mozRequestFullScreen();
+    } else if (canvas.msRequestFullscreen) {
+	    canvas.msRequestFullscreen();
+    }
 }
 </script>
 <body onload="javascript:main()" style="margin:0px;padding:0px;">

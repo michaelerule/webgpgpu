@@ -152,14 +152,12 @@ function buildRasterProgram(gl,fragment,defines,header) {
           // common source of bugs is to provide output but no input
           // causing intended output object to be treated like the
           // input (arguments) list.
-          /*
           console.log(
             `Caution: GPU program called with one argument. 
             Single input being treated as arguments list. 
             Not as a render target. 
             If this is not the case, 
             missing variable errors will ensue.`);
-            */
         }
         return applyProgram(program,inputs,output);
     }
