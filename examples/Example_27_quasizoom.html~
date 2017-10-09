@@ -127,6 +127,8 @@ Audio <a href="https://en.wikipedia.org/wiki/File:DescenteInfinie.ogg">via Wikim
 </audio> 
 </br>
 <a onclick="togglepopup();" href="#">hide this overlay</a>
+</br>
+<a onclick="fullscreen();" href="#">Fullscreen</a>
 </div>
 </body>
 </html>
