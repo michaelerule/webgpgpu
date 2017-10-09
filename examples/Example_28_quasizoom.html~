@@ -12,11 +12,12 @@ uniform float basescale;
 uniform float aspect;
 uniform float phasebias;
 uniform float huebias;
-#define NWAVE (6)
+uniform float SIGMA;
+#define NWAVE (4)
 #define NSCALE (9)
 #define PI (3.14159265359)
 #define NBANDS (float(3))
-#define SIGMA (float(0.6))
+//#define SIGMA (float(0.5))
 #define MEAN (float(3.0))
 void main() {
     vec2 q = gl_FragCoord.xy/vec2(W,H); 
@@ -36,8 +37,8 @@ void main() {
             // Loop over all waves
             float phi = (float(k)+0.5)*PI/float(NWAVE) + phasebias;
             float psi = 
-                    phasebias*scale
-                    +(cos(phi)*q.x+sin(phi)*q.y)*(2.0*PI)*NBANDS*scale;
+                    (phasebias
+                    +(cos(phi)*q.x+sin(phi)*q.y)*(2.0*PI))*NBANDS*scale;
             sum += weight*vec2(cos(psi),sin(psi));
         }
         scale *= 2.0;
@@ -49,8 +50,8 @@ void main() {
     float s = sum.x;
     float brightness = sin((sum.x*0.5+1.0)*14.0*PI)*0.5+0.5;
     
-    brightness = brightness*0.75+0.25;
-    
+    //brightness = brightness*0.75+0.25;
+    brightness = pow(brightness,3.0);
     // Hue wheel coloring
     
     //float brightness = 1.0;
@@ -68,6 +69,8 @@ void main() {
     vec3 c2  = vec3(r1,c.g+Z+c.r-r1,c.b-Z)*brightness;
     //c2 = vec3(brightness);
     
+    c2.b = c2.r+c2.g;//c2.b*(c2.r+c2.g+0.5);
+    
     gl_FragColor = vec4(c2,0.0);
 }
 </script>
@@ -83,18 +86,6 @@ function main()
 
     // Create a WebGL context on the canvas, abort if fail
     var canvas = $("maincanvas");
-
-    // go full-screen
-    if (canvas.requestFullscreen) {
-	    canvas.requestFullscreen();
-    } else if (canvas.webkitRequestFullscreen) {
-	    canvas.webkitRequestFullscreen();
-    } else if (canvas.mozRequestFullScreen) {
-	    canvas.mozRequestFullScreen();
-    } else if (canvas.msRequestFullscreen) {
-	    canvas.msRequestFullscreen();
-    }
-
     var gl = getRasterGL(canvas);
     if (!gl) OUT; 
 
@@ -103,20 +94,26 @@ function main()
     var scale = 1.0;
     var phase = 0.0;
     var hue   = 0.0;
+    var spread = 0.0;
     function animate() {
         setTimeout(function(){
-            scale += 0.01;
+            scale += 0.0075;
             if (scale>=1) scale=0;
             phase = phase+0.001;
             if (phase>6.28318530718) phase-=6.28318530718;
+            spread = spread+0.01345;
+            if (spread>6.28318530718) spread-=6.28318530718;
             hue = hue+6.28318530718-0.01;
             if (hue>6.28318530718) hue-=6.28318530718;
             w = canvas.scrollWidth ||canvas.width;
             h = canvas.scrollHeight||canvas.height;
+            w = canvas.width;
+            h = canvas.height;
             quasi({
                 basescale:Math.pow(2,-scale),
                 phasebias:phase,
                 huebias:hue,
+                SIGMA:0.7,//0.5+(Math.cos(spread)+1)*0.75,
                 aspect:Math.sqrt(w/h)});
             requestAnimationFrame(animate);
         },1000./20.);
@@ -166,6 +163,8 @@ Audio <a href="https://en.wikipedia.org/wiki/File:DescenteInfinie.ogg">via Wikim
 </audio> 
 </br>
 <a onclick="togglepopup();" href="#">hide this overlay</a>
+</br>
+<a onclick="fullscreen();" href="#">Fullscreen</a>
 </div>
 </body>
 </html>
