@@ -13,9 +13,9 @@ uniform float aspect;
 uniform float phasebias;
 uniform float huebias;
 #define NWAVE (6)
-#define NSCALE (7)
+#define NSCALE (9)
 #define PI (3.14159265359)
-#define NBANDS (float(4))
+#define NBANDS (float(3))
 #define SIGMA (float(0.6))
 #define MEAN (float(3.0))
 void main() {
@@ -34,7 +34,7 @@ void main() {
         float weight = exp(-0.5*pow((log2(scale)-MEAN)/SIGMA,2.0));
         for (int k=0;k<NWAVE;k++) {
             // Loop over all waves
-            float phi = float(k)*PI/float(NWAVE);
+            float phi = (float(k)+0.5)*PI/float(NWAVE) + phasebias;
             float psi = 
                     phasebias*scale
                     +(cos(phi)*q.x+sin(phi)*q.y)*(2.0*PI)*NBANDS*scale;
@@ -46,31 +46,27 @@ void main() {
     
     sum /= norm*float(NWAVE);
     
-    // Use McAllester shading
-    // http://mainisusuallyafunction.blogspot.co.uk/2011/10/quasicrystals-as-sums-of-waves-in-plane.html
-    float brightness = sin((sum.x*0.5+1.0)*float(NWAVE)*2.0*PI)*0.5+0.5;
+    float s = sum.x;
+    float brightness = sin((sum.x*0.5+1.0)*14.0*PI)*0.5+0.5;
     
-    // Rule shading
-    //float brightness = pow(sum.x*0.5+0.5+0.3,3.0);
-    //float brightness = (exp(sum.x*2.4)-0.13)/7.1;
-    //vec3 c2 = vec3(brightness);
+    brightness = brightness*0.75+0.25;
     
     // Hue wheel coloring
     
     //float brightness = 1.0;
-    sum = sum/length(sum);
-    float hue =2.0*(-angle+atan(sum.y,sum.x)+huebias);
+    //sum = sum/length(sum);
+    //float hue =1.0*(atan(sum.y,sum.x)+1.0+0.0*huebias);
+    float hue =sum.x*2.0*PI+huebias;
     float ch = cos(hue);
     float sh = sin(hue);
     float Q1 = sh/sqrt(3.0);
     float Q2 = (1.0-ch)/3.0;
-    sum = sum/length(sum);
     vec4  c  = vec4(0,1,0.7,1);
     vec3  d  = c.rgb-c.brg;
     float r1 = Q2*(d.g-d.r)-Q1*d.b+c.r;
     float Z  = Q2*(d.b-d.r)+Q1*d.g;
     vec3 c2  = vec3(r1,c.g+Z+c.r-r1,c.b-Z)*brightness;
-    
+    //c2 = vec3(brightness);
     
     gl_FragColor = vec4(c2,0.0);
 }
@@ -97,11 +93,11 @@ function main()
     var hue   = 0.0;
     function animate() {
         setTimeout(function(){
-            scale += 0.01
+            scale += 0.01;
             if (scale>=1) scale=0;
-            phase = phase+0.01;
+            phase = phase+0.001;
             if (phase>6.28318530718) phase-=6.28318530718;
-            hue = hue+6.28318530718-0.1;
+            hue = hue+6.28318530718-0.01;
             if (hue>6.28318530718) hue-=6.28318530718;
             w = canvas.scrollWidth ||canvas.width;
             h = canvas.scrollHeight||canvas.height;
