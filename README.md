@@ -1,14 +1,10 @@
 # webgpgpu
 
-Have you ever wanted to simulate a two-dimensional PDE or integro-differential equation on the GPU [
-[pnmeila](
-https://www.chromeexperiments.com/experiment/gray-scott-simulation),
-[Felix Woitzel](
-http://webglplayground.net/gallery),
-[Robin Houston](
-https://bl.ocks.org/robinhouston/ed597847175cf692ecce),
-and [Inear](
-http://www.inear.se/patterns/demo1/)]?
+Have you ever wanted to simulate a two-dimensional PDE or integro-differential equation on the GPU [e.g. 
+[pnmeila](https://www.chromeexperiments.com/experiment/gray-scott-simulation),
+[Felix Woitzel](http://webglplayground.net/gallery),
+[Robin Houston](https://bl.ocks.org/robinhouston/ed597847175cf692ecce),
+[Inear](http://www.inear.se/patterns/demo1/)]?
 Starting from the [WebGL fundamentals](http://learningwebgl.com/blog/?p=11) tutorials, its not immediately clear how to use WebGL to accelerate two-dimensional texture-based simulations. This library contains a series of walk-through examples, starting from "hello GPU" and slowly building up to simulating partial differential equations.
 
 Other examples of using WebGL for GPGPU code ([1](https://github.com/holgerl/webgl-gpgpu)
