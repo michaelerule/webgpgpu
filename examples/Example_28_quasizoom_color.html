@@ -12,11 +12,12 @@ uniform float basescale;
 uniform float aspect;
 uniform float phasebias;
 uniform float huebias;
-#define NWAVE (6)
+uniform float rotation;
+#define NWAVE (3)
 #define NSCALE (9)
 #define PI (3.14159265359)
-#define NBANDS (float(3))
-#define SIGMA (float(0.6))
+#define NBANDS (float(5))
+#define SIGMA (float(1.0))
 #define MEAN (float(3.0))
 void main() {
     vec2 q = gl_FragCoord.xy/vec2(W,H); 
@@ -34,7 +35,7 @@ void main() {
         float weight = exp(-0.5*pow((log2(scale)-MEAN)/SIGMA,2.0));
         for (int k=0;k<NWAVE;k++) {
             // Loop over all waves
-            float phi = (float(k)+0.5)*PI/float(NWAVE) + phasebias;
+            float phi = (float(k)+0.5)*PI/float(NWAVE) + rotation;
             float psi = 
                     phasebias*scale
                     +(cos(phi)*q.x+sin(phi)*q.y)*(2.0*PI)*NBANDS*scale;
@@ -49,7 +50,7 @@ void main() {
     float s = sum.x;
     float brightness = sin((sum.x*0.5+1.0)*14.0*PI)*0.5+0.5;
     
-    brightness = brightness*0.75+0.25;
+    brightness = 1.0;//brightness*0.75+0.25;
     
     // Hue wheel coloring
     
@@ -91,12 +92,15 @@ function main()
     var scale = 1.0;
     var phase = 0.0;
     var hue   = 0.0;
+    var rotation = 0.0;
     function animate() {
         setTimeout(function(){
             scale += 0.01;
             if (scale>=1) scale=0;
-            phase = phase+0.001;
+            //phase = phase+0.001;
             if (phase>6.28318530718) phase-=6.28318530718;
+            rotation = rotation+0.001;
+            if (rotation>6.28318530718) rotation-=6.28318530718;
             hue = hue+6.28318530718-0.01;
             if (hue>6.28318530718) hue-=6.28318530718;
             w = canvas.scrollWidth ||canvas.width;
@@ -105,6 +109,7 @@ function main()
                 basescale:Math.pow(2,-scale),
                 phasebias:phase,
                 huebias:hue,
+                rotation:rotation,
                 aspect:Math.sqrt(w/h)});
             requestAnimationFrame(animate);
         },1000./20.);
