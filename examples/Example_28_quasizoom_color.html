@@ -12,21 +12,18 @@ uniform float basescale;
 uniform float aspect;
 uniform float phasebias;
 uniform float huebias;
-<<<<<<< HEAD:examples/Example_28_quasizoom_color.html
 uniform float rotation;
 #define NWAVE (3)
 #define NSCALE (9)
 #define PI (3.14159265359)
-#define NBANDS (float(5))
+//#define NBANDS (float(5))
 #define SIGMA (float(1.0))
-=======
-uniform float SIGMA;
-#define NWAVE (4)
+//uniform float SIGMA;
+//#define NWAVE (4)
 #define NSCALE (9)
 #define PI (3.14159265359)
 #define NBANDS (float(3))
 //#define SIGMA (float(0.5))
->>>>>>> cf679fab86504e40216c4ebaf8de52a98ede8de4:examples/Example_28_quasizoom.html
 #define MEAN (float(3.0))
 void main() {
     vec2 q = gl_FragCoord.xy/vec2(W,H); 
@@ -59,13 +56,9 @@ void main() {
     float s = sum.x;
     float brightness = sin((sum.x*0.5+1.0)*14.0*PI)*0.5+0.5;
     
-<<<<<<< HEAD:examples/Example_28_quasizoom_color.html
     brightness = 1.0;//brightness*0.75+0.25;
-    
-=======
     //brightness = brightness*0.75+0.25;
     brightness = pow(brightness,3.0);
->>>>>>> cf679fab86504e40216c4ebaf8de52a98ede8de4:examples/Example_28_quasizoom.html
     // Hue wheel coloring
     
     //float brightness = 1.0;
@@ -108,24 +101,18 @@ function main()
     var scale = 1.0;
     var phase = 0.0;
     var hue   = 0.0;
-<<<<<<< HEAD:examples/Example_28_quasizoom_color.html
     var rotation = 0.0;
-=======
     var spread = 0.0;
->>>>>>> cf679fab86504e40216c4ebaf8de52a98ede8de4:examples/Example_28_quasizoom.html
     function animate() {
         setTimeout(function(){
             scale += 0.0075;
             if (scale>=1) scale=0;
             //phase = phase+0.001;
             if (phase>6.28318530718) phase-=6.28318530718;
-<<<<<<< HEAD:examples/Example_28_quasizoom_color.html
             rotation = rotation+0.001;
             if (rotation>6.28318530718) rotation-=6.28318530718;
-=======
             spread = spread+0.01345;
             if (spread>6.28318530718) spread-=6.28318530718;
->>>>>>> cf679fab86504e40216c4ebaf8de52a98ede8de4:examples/Example_28_quasizoom.html
             hue = hue+6.28318530718-0.01;
             if (hue>6.28318530718) hue-=6.28318530718;
             if (document.isFullscreen()) {
@@ -139,11 +126,8 @@ function main()
                 basescale:Math.pow(2,-scale),
                 phasebias:phase,
                 huebias:hue,
-<<<<<<< HEAD:examples/Example_28_quasizoom_color.html
                 rotation:rotation,
-=======
                 SIGMA:0.7,//0.5+(Math.cos(spread)+1)*0.75,
->>>>>>> cf679fab86504e40216c4ebaf8de52a98ede8de4:examples/Example_28_quasizoom.html
                 aspect:Math.sqrt(w/h)});
             requestAnimationFrame(animate);
         },1000./20.);
