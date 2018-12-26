@@ -10,6 +10,12 @@
 # Run this script from it's local directory
 #
 
+# Clean up editor and temp files from the local directory (even if not 
+# tracked by git)
+echo "Deleting editor temporary files"
+find . -name "*.pyc" -exec rm -rf {} \; 2>/dev/null
+find . -name "*~" -exec rm -rf {} \;  2>/dev/null
+
 cat .gitignore | awk "/^[.\*]/" | sed 's/"/"\\""/g;s/.*/"&"/' |  xargs -E '' -I{} git rm -rf --cached {}
 git rm -rf --cached *.pyc
 

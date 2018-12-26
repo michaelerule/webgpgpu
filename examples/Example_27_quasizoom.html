@@ -66,8 +66,13 @@ function main()
             if (scale>=2.0) scale = 1.0;
             phase = phase+0.001;
             if (phase>6.28318530718) phase-=6.28318530718;
-            var w = canvas.scrollWidth ||canvas.width;
-            var h = canvas.scrollHeight||canvas.height;
+            if (document.isFullscreen()) {
+                w = canvas.width;
+                h = canvas.height;
+            } else {
+                w = canvas.scrollWidth ||canvas.width;
+                h = canvas.scrollHeight||canvas.height;
+            }
             quasi({
                 basescale:scale,
                 phasebias:phase,
@@ -86,6 +91,30 @@ function togglepopup() {
     else popup.style.display = "none";
     popup.style.cursor = "pointer";
 }
+
+function fullscreen() {
+    // Create a WebGL context on the canvas, abort if fail
+    var canvas = $("maincanvas");
+    // go full-screen
+    if (canvas.requestFullscreen) {
+	    canvas.requestFullscreen();
+    } else if (canvas.webkitRequestFullscreen) {
+	    canvas.webkitRequestFullscreen();
+    } else if (canvas.mozRequestFullScreen) {
+	    canvas.mozRequestFullScreen();
+    } else if (canvas.msRequestFullscreen) {
+	    canvas.msRequestFullscreen();
+    }
+}
+
+if (typeof(document.isFullscreen === undefined)) {
+  document.isFullscreen = function() {
+ return !((document.fullScreenElement !== undefined && document.fullScreenElement === null) || 
+ (document.msFullscreenElement !== undefined && document.msFullscreenElement === null) || 
+ (document.mozFullScreen !== undefined && !document.mozFullScreen) || 
+ (document.webkitIsFullScreen !== undefined && !document.webkitIsFullScreen));
+  }
+}
 </script>
 <body onload="javascript:main()" style="margin:0px;padding:0px;">
 <canvas id='maincanvas' style="width:100%;height:100%;margin:0px;padding:0px;"></canvas>
@@ -103,6 +132,8 @@ Audio <a href="https://en.wikipedia.org/wiki/File:DescenteInfinie.ogg">via Wikim
 </audio> 
 </br>
 <a onclick="togglepopup();" href="#">hide this overlay</a>
+</br>
+<a onclick="fullscreen();" href="#">Fullscreen</a>
 </div>
 </body>
 </html>
