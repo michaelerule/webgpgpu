@@ -86,10 +86,10 @@ function sprite_renderer(gl,npoint,ndots,canvas,alpha) {
         #define SPRITE_WIDTH (32.0)
         #define SPRITE_ATLASS_WIDTH_SPRITES (4.0)
         #define EDGE_SHARPNESS (1.4)
-        #define ALPHA_CUTOFF (0.2)
+        #define ALPHA_CUTOFF (0.1)
         #define W (512.0)
         #define EDGE_TAPER_START_PIXELS (1.0)
-        #define EDGE_RADIUS (0.18)
+        #define EDGE_RADIUS (0.5)
         void main() {
             // This will be a point in [0,1]x[0,1] denoting the location on the sprite
             vec2 q = gl_PointCoord;
@@ -102,6 +102,10 @@ function sprite_renderer(gl,npoint,ndots,canvas,alpha) {
             vec4  frgnd = texture2D(sprites,p);
             float alpha = frgnd.w;
             float rr = length(q-0.5+1.0/p_size*vec2(.5,-.5));
+            if (rr>0.45 && rr<0.5 && v.y>1.5) {
+                alpha=1.0;
+                frgnd=vec4(1.);
+            }
             // Use a soft threshold to fade out the sprite at the edge
             // for smoother blending with the background (less visible pixelation)
             alpha *= 1.0/(1.0+exp(EDGE_SHARPNESS*p_size*(rr-(EDGE_RADIUS+EDGE_TAPER_START_PIXELS/p_size))));

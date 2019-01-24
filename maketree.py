@@ -43,7 +43,7 @@ content = ""
 dirlist = ''
 filelist = ''
 
-for f in os.listdir('.'):
+for f in sorted(os.listdir('.')):
     # Ignore . files
     if f[0]=='.': continue
     if f[-1]=='~': continue
