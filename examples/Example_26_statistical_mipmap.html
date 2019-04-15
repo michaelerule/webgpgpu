@@ -48,8 +48,7 @@ void main() {
     vec2 scale = 1.0/vec2(W,H);
     vec2 p = gl_FragCoord.xy*scale; 
     vec2 q = p;
-    // indexing is gonna be crazy
-    // better hope things are more or less a power of two
+    // hope things are more or less a power of two
     // double our index in the x and y and pull pixels from that
     // unless it's out of bounds, in which case pull from source image. 
     if (q.y<0.5)
