@@ -6,6 +6,8 @@ This library contains a series of walk-through examples, starting from "hello GP
 [houston](https://bl.ocks.org/robinhouston/ed597847175cf692ecce),
 [inear](http://www.inear.se/patterns/demo1/))
 
+Previews and descriptions of the examples can be found [here](./examples/example previews/index.html)
+
 [The website contained in this repository can be browsed on Github pages](https://michaelerule.github.io/webgpgpu/)
 
 Unless otherwise specified, media, text, and rendered outputs are licensed under the [Creative Commons Attribution Share Alike 4.0 license](https://choosealicense.com/licenses/cc-by-sa-4.0/) (CC BY-SA 4.0). Source code is licensed under the [GNU General Public License version 3.0](https://www.gnu.org/copyleft/gpl.html) (GPLv3). The CC BY-SA 4.0 is [one-way compatible](https://creativecommons.org/compatiblelicenses) with the GPLv3 license. 
