@@ -11,7 +11,7 @@ Other examples of using WebGL for GPGPU code can be found here ([1](https://gith
 [2](https://github.com/stormcolor/webclgl)
 [3](http://www.vizitsolutions.com/portfolio/webgl/gpgpu/)
 [4](http://concord-consortium.github.io/lab/experiments/webgl-gpgpu/webgl.html)
-[5](http://pathgl.com/documentation/gpgpu.html))
+[5](http://pathgl.com/documentation/gpgpu.html)).
 
 # Basic examples
 
