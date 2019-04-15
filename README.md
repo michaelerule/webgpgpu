@@ -8,7 +8,7 @@ This library contains a series of walk-through examples, starting from "hello GP
 
 Previews and descriptions of the examples can be found [here](https://michaelerule.github.io/webgpgpu/examples/example_previews/index.html), and the files contained in this repository can be browsed on [Github pages](https://michaelerule.github.io/webgpgpu/).
 
-#Basic examples
+# Basic examples
 
 Basic examples that set up a two-dimensional rendering environment within the 3D WebGL framework, and then illustrate
 basic rendering techniques like rendering from a texture, pixel operations like blurring, and random noise.
