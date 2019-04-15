@@ -64,7 +64,7 @@ WebGL doesn't explicitly support unsigned integer types and bit operations. Howe
 # Technical experiments
 These examples test a couple of technical tricks that might be useful in rendering. 
 <table>
-<tr><td><a href="./examples/Example_25_gaussian_noise.html"><img src='./examples/example_previews/example25.png' width='100'/></a></td>
+<tr><td width='120'><a href="./examples/Example_25_gaussian_noise.html"><img src='./examples/example_previews/example25.png' width='100'/></a></td>
 <td><a href="./examples/Example_25_gaussian_noise.html"><h4>Example 25: "Gaussian noise"</h4></a><break/>
 Convert uniform random numbers to Gaussian random numbers with mean and variance specified by the mouse location. 
 </td></tr>
