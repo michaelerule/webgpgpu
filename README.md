@@ -66,6 +66,36 @@ The minimal subset of WebGL doesn't explicitly support storing/reading unsigned 
 </table>
 
 
+# Image processing examples
+These examples demonstrate basic image processing: color adjustments and blur/sharpen.
+<table>
+<tr><td width='120'><a href="./examples/Example_15_load_image.html"><img src='./examples/example_previews/example15.png' width='100'/></a></td>
+<td><a href="./examples/Example_15_load_image.html"><h4>Example 15: "Load image"</h4></a><break/>
+This example loads an image resource, copies it to a texture, and displays it on screen.
+</td></tr>
+<tr><td><a href="./examples/Example_16_hue_rotation.html"><img src='./examples/example_previews/example16.png' width='100'/></a></td>
+<td><a href="./examples/Example_16_hue_rotation.html"><h4>Example 16: "Linear hue rotation"</h4></a><break/>
+This example demonstrates hue rotation as an optimize linear transformation using hue and chroma.
+</td></tr>
+<tr><td><a href="./examples/Example_17_blur_image.html"><img src='./examples/example_previews/example17.png' width='100'/></a></td>
+<td><a href="./examples/Example_17_blur_image.html"><h4>Example 17: "Image blur"</h4></a><break/>
+Apply iterated Guassian blur to image data.
+</td></tr>
+<tr><td><a href="./examples/Example_17_unsharp_mask.html"><img src='./examples/example_previews/example17b.png' width='100'/></a></td>
+<td><a href="./examples/Example_17_unsharp_mask.html"><h4>Example 17b: "Unsharp mask"</h4></a><break/>
+Apply iterated unsharp mask to image data.
+</td></tr>
+<tr><td><a href="./examples/Example_19_contrast_and_brightness.html"><img src='./examples/example_previews/example19.png' width='100'/></a></td>
+<td><a href="./examples/Example_19_contrast_and_brightness.html"><h4>Example 19: "Brightness and contrast"</h4></a><break/>
+Adjust brightness and contrast of image based on mouse location.
+</td></tr>
+<tr><td><a href="./examples/Example_20_color_matrix_hue_and_saturation.html"><img src='./examples/example_previews/example20.png' width='100'/></a></td>
+<td><a href="./examples/Example_20_color_matrix_hue_and_saturation.html"><h4>Example 19: "Hue and saturation"</h4></a><break/>
+Adjust hue and saturation of image based on mouse location.
+</td></tr>
+</table>
+
+
 # Technical experiments
 These examples test a couple of technical tricks that might be useful in rendering. 
 <table>
