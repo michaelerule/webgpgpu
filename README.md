@@ -61,7 +61,7 @@ This example combines driving noise with repeated Gaussian blurs to create a spa
 </td></tr>
 <tr><td><a href="./examples/Example_11_bitops.html"><img src='./examples/example_previews/example11.png' width='100'/></a></td>
 <td><a href="./examples/Example_11_bitops.html"><h4>Example 11: "Bitops"</h4></a><break/>
-WebGL doesn't explicitly support unsigned integer types and bit operations. However, most reasonable hardware and WebGL implementations should implicitly store color texture data as 8-bit integers. This kernel accesses this color data as if it were uint8, even though it is technically a float. 
+The minimal subset of WebGL doesn't explicitly support storing/reading unsigned integer types from textures, or bit operations. However, most reasonable hardware and WebGL implementations should implicitly store color texture data as 8-bit integers. This kernel accesses this color data as if it were uint8, even though it is technically a float. 
 </td></tr>
 </table>
 
