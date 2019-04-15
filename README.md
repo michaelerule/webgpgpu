@@ -6,7 +6,7 @@ This library contains a series of walk-through examples, starting from "hello GP
 [houston](https://bl.ocks.org/robinhouston/ed597847175cf692ecce),
 [inear](http://www.inear.se/patterns/demo1/))
 
-Previews and descriptions of the examples can be found [here](./examples/example previews/index.html)
+Previews and descriptions of the examples can be found [here](http://michaelerule.github.io/webgpgpu/examples/examples/example previews/index.html)
 
 [The website contained in this repository can be browsed on Github pages](https://michaelerule.github.io/webgpgpu/)
 
