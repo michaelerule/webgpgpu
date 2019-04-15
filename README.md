@@ -13,7 +13,9 @@ Previews and descriptions of the examples can be found [here](https://michaeleru
 Basic examples that set up a two-dimensional rendering environment within the 3D WebGL framework, and then illustrate
 basic rendering techniques like rendering from a texture, pixel operations like blurring, and random noise.
 <table>
-<tr><td><a href="./examples/Example_1_hello_gpu.html"><img src='./examples/example_previews/example1.png' width='100px'/></a></td>
+<tr><td><a href="./examples/Example_1_hello_gpu.html">
+<img src='./examples/example_previews/example1.png' width='100px'/>
+</a></td>
 <td><a href="./examples/Example_1_hello_gpu.html"><h4>Example 1: "Hello GPU"</h4></a><break/>
 Set up an HTML Canvas for webGLM rendering, and render a simple coordinate-dependent image.
 </td></tr>
