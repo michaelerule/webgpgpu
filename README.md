@@ -215,7 +215,7 @@ Spiral wave emerge in a Wilson-Cowan neural field model. The lack of platform-sp
 </td></tr>
 <tr><td><a href="./examples/WC_Example_2_platform_independent_rounding.html"><img src='./examples/example_previews/WCexample2.png' width='100'/></a></td>
 <td><a href="./examples/wilson_cowan_examples/WC_Example_2_platform_independent_rounding.html"><h4>Example 2: "Platform independent rounding"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/WC_Example_2_platform_independent_rounding.html">view example</a>)
+(<a href="http://michaelerule.github.io/webgpgpu/examples/wilson_cowan_examples/WC_Example_2_platform_independent_rounding.html">view example</a>)
 <break/>
 Spiral wave emerge in a Wilson-Cowan neural field model. Additional macros enforce a platform-independent rounding rule, allowing for consistent behavior across devices.
 </td></tr>
@@ -227,32 +227,32 @@ Center surround "mexican hat" style coupling leads to the emergence of striped p
 </td></tr>
 <tr><td><a href="./examples/wilson_cowan_examples/WC_Example_4_periodic_forcing.html"><img src='./examples/example_previews/WCexample4b.png' width='100'/></a></td>
 <td><a href="./examples/wilson_cowan_examples/WC_Example_4_periodic_forcing.html"><h4>Example 4: "Flicker"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/WC_Example_4_periodic_forcing.html">view example</a>)
+(<a href="http://michaelerule.github.io/webgpgpu/examples/wilson_cowan_examples/WC_Example_4_periodic_forcing.html">view example</a>)
 <break/>
 Turing patterns induced in a Wilson-Cowan system by periodic forcing. 
 <i>(Rule M, Stoffregen M, Ermentrout B. <a href="https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1002158">A model for the origin and properties of flicker-induced geometric phosphenes.</a> PLoS computational biology. 2011 Sep 29;7(9):e1002158.)</i>
 </td></tr>
 <tr><td><a href="./examples/wilson_cowan_examples/WC_Example_5_logarithmic_retinal_map.html"><img src='./examples/example_previews/WCexample5.png' width='100'/></a></td>
 <td><a href="./examples/wilson_cowan_examples/WC_Example_5_logarithmic_retinal_map.html"><h4>Example 5: "Retinotopic map"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/WC_Example_5_logarithmic_retinal_map.html">view example</a>)
+(<a href="http://michaelerule.github.io/webgpgpu/examples/wilson_cowan_examples/WC_Example_5_logarithmic_retinal_map.html">view example</a>)
 <break/>
 Use the logarithmic map to approximate how a Wilson-Cowan pattern forming system might appear in subjective coordinates, if the emergent waves were to occur in visual cortex. <i>(Ermentrout GB, Cowan JD. <a href="https://link.springer.com/article/10.1007/BF00336965">A mathematical theory of visual hallucination patterns.</a> Biological cybernetics. 1979 Oct 1;34(3):137-50.)</i>
 </td></tr>
 <tr><td><a href="./examples/wilson_cowan_examples/WC_Example_9_wilson_cowan_fix_point_16_bit.html"><img src='./examples/example_previews/WCexample9.png' width='100'/></a></td>
 <td><a href="./examples/wilson_cowan_examples/WC_Example_9_wilson_cowan_fix_point_16_bit.html"><h4>Example 9: "16-bit precision"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/WC_Example_9_wilson_cowan_fix_point_16_bit.html">view example</a>)
+(<a href="http://michaelerule.github.io/webgpgpu/examples/wilson_cowan_examples/WC_Example_9_wilson_cowan_fix_point_16_bit.html">view example</a>)
 <break/>
 Use two color components, with 8-bits each, to implement 16-bit fixed-point storage of simulation states. This leads to a slightly more accurate numerical integration.
 </td></tr>
 <tr><td><a href="./examples/wilson_cowan_examples/WC_Example_10_fullscreen.html"><img src='./examples/example_previews/WCexample10.png' width='100'/></a></td>
 <td><a href="./examples/wilson_cowan_examples/WC_Example_10_fullscreen.html"><h4>Example 10: "Fullscreen"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/WC_Example_10_fullscreen.html">view example</a>)
+(<a href="http://michaelerule.github.io/webgpgpu/examples/wilson_cowan_examples/WC_Example_10_fullscreen.html">view example</a>)
 <break/>
 Full-screen test of a logarithmically-mapped Wilson-Cowan pattern forming system.
 </td></tr>
 <tr><td><a href="./examples/wilson_cowan_examples/WC_Example_11_acid_trip.html"><img src='./examples/example_previews/WCexample11.png' width='100'/></a></td>
 <td><a href="./examples/wilson_cowan_examples/WC_Example_11_acid_trip.html"><h4>Example 11: "Psychedelic"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/WC_Example_11_acid_trip.html">view example</a>)
+(<a href="http://michaelerule.github.io/webgpgpu/examples/wilson_cowan_examples/WC_Example_11_acid_trip.html">view example</a>)
 <break/>
 Full-screen test of a logarithmically-mapped Wilson-Cowan pattern forming system. Additional noise and hue rotation effects are added. This is purely a visual demonstration.
 </td></tr>
