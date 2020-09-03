@@ -21,7 +21,7 @@ git rm -rf --cached *.pyc
 
 ./maketree.py
 shopt -s extglob
-./go
+#./go
 git add *
 git add -u :/
 git commit -a -m "$1"
