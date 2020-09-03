@@ -174,8 +174,8 @@ void main() {
 
 // Configuration constants.
 // The game size is now defined in terms of tiles. 
-const game_w_tiles = 256;
-const game_h_tiles = 256;
+const game_w_tiles = 128;
+const game_h_tiles = 128;
 // We need to know shape of tiles in the tiles texture, as well as
 // how many tiles across it is
 const tile_w_px    = 8;
@@ -271,7 +271,7 @@ function main()
         game_kernel({game_state:game_state,noise:rng_noise},game_temp);
         copy(game_temp,game_state);
         render();
-        setTimeout(animate,10);
+        setTimeout(animate,100);
     }
     animate();
 }
