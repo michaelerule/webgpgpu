@@ -87,14 +87,14 @@ void main() {
     vec4 n = texture2D(noise,p);
 
     // Trees emerge with some probablity
-    float tree = s11.g + float(n.r<1.0/256.0)*0.1;
+    float tree = s11.g + float(n.r<4.0/256.0)*0.1;
 
     // Fire burns out
     float fire = s11.b-1.0/18.0;
 
     // Fire spreads if there are trees to burn
     float PrFire = s01.b+s10.b+s12.b+s21.b;
-    PrFire = PrFire*0.5+0.0001;
+    PrFire = PrFire*0.5+0.0005;
     float u = n.g+n.b/256.0;
     if (u<(PrFire*(tree-0.1))) {fire=9.0/10.0;}
     if (fire>0.0) tree=0.0;
@@ -174,8 +174,8 @@ void main() {
 
 // Configuration constants.
 // The game size is now defined in terms of tiles. 
-const game_w_tiles = 128;
-const game_h_tiles = 128;
+const game_w_tiles = 100;
+const game_h_tiles = 100;
 // We need to know shape of tiles in the tiles texture, as well as
 // how many tiles across it is
 const tile_w_px    = 8;
@@ -187,7 +187,7 @@ const game_h_px    = game_h_tiles*tile_h_px;
 
 // View behavior and limits
 const max_scale    = 8;
-const min_scale    = 1;
+const min_scale    = 2;
 const key_pan      = 10;
 const key_zoom     = 1.1;
 
@@ -271,7 +271,7 @@ function main()
         game_kernel({game_state:game_state,noise:rng_noise},game_temp);
         copy(game_temp,game_state);
         render();
-        setTimeout(animate,100);
+        setTimeout(animate,50);
     }
     animate();
 }
