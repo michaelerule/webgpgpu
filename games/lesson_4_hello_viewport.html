@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<!--
+- Fill the screen with the game environment. No scrolling
+- Top portion of screen is game panel, bottom region console
+- Set up a basic web GL canvas environment that we'll use to draw the game
+- Move setup code into a library ("gpgpu")
+- Add bounded rendering region, with view scale and coordinates
+
+We'll use a 2D rendering approach and do all of the view scaling/shifting
+inside the WebGL rendering kernel. 
+
+( There is another way to do this is by moving the quadrilateral that's serving 
+as our canvas in WebGL, and perhaps also adjust the viewport to avoid drawing
+more pixels than needed. But, if the game is usually filling the viewport, this
+approach won't save very much. )
+
+We'll pass the upper left corner, as well as width and height, of the viewable
+game area, as a vec4. 
+
+Useful
+https://webgl2fundamentals.org/webgl/lessons/webgl-anti-patterns.html
+https://stackoverflow.com/questions/13870677/resize-viewport-canvas-according-to-browser-window-size
+https://github.com/michaelerule/webgpgpu
+-->
+<head>
+<meta charset="utf-8"/>
+<script>
+window.addEventListener('load', function() {
+    main();
+})
+</script>
+<script src="./lib/gpgpu.js"></script>
+<script src="./lib/parameters.js"></script>
+<link rel="stylesheet" type="text/css" href="lessons.css">
+</head>
+<body>
+<div id="outer_container">
+<div id="controls_top"></div>
+<canvas id="game_canvas"></canvas>
+<div id="controls_bottom"></div>
+</div>
+
+<!--
+The parameters.js routines simplify passing parameters to the shader. 
+Some parameters can be passed when we compile the shader (as #defines),
+and others can be passed later as sampler or uniform parameters. The function
+"compile_bind" generates the header text, with the appropriate #defines and
+parameter declarations.
+-->
+<script id="basic_program_parameters" type="x-shader/x-fragment">
+float game_w_px;
+float game_h_px;
+vec3 view_transform;
+</script>
+<script id="basic_program" type="x-shader/x-fragment">
+void main() {
+    vec2 p = gl_FragCoord.xy;
+
+    // Transform from screen coordinates to game pixel coordinates
+    // Use the center of the screen as the reference point
+    // We'll need to know the focus point of the game (center it),
+    // The canvas width and height, and any scale transformation. 
+    // The transform is computed on the CPU and passed as parameter 
+    // `view_transform`.
+    p.xy = (p.xy*view_transform.z + view_transform.xy);
+
+    // Exit if coordinate is not inside visible game region
+    if (p.x<0.0||p.y<0.0||p.x>game_w_px||p.y>game_h_px) {
+        gl_FragColor = vec4(0.0,0.0,0.0,0.0);
+        return;
+    }
+
+    // Render pixel if it is visible
+    gl_FragColor = vec4(
+        p.x<256.?1:0,
+        p.y<256.?1:0,
+        mod(floor(p.y/8.),2.),
+        1);
+}
+</script>
+<script>
+
+function render() {
+    var w = gl.canvas.width;
+    var h = gl.canvas.height;
+    gl.viewport(0,0,w,h);
+    // Compute game view transformation
+    var s = game_scale;
+    var x = Math.floor(game_focus_x-w/2*s);
+    var y = Math.floor(game_focus_y-h/2*s);
+    basic_program({view_transform:[x,y,s]});
+};
+
+function resizeCanvas() {
+    var w = canvas.clientWidth;
+    var h = canvas.clientHeight;
+    if (canvas.width!=w||canvas.height!=h) {
+        canvas.width=w; canvas.height=h; render();
+    }
+}
+
+// This is the main script that will run when the website loads
+function main()
+{
+    game_w_px    = 512;
+    game_h_px    = 512;
+    game_focus_x = 256;
+    game_focus_y = 256;
+    game_scale   = 1.5;
+
+    // Retrieve a handle to the canvas element
+    canvas = $("game_canvas");
+    // Try to create a WebGL context on the canvas, abort if it fails
+    gl = getRasterGL(canvas);
+    if (!gl) OUT; 
+
+    // Bind our example fragment shader as a function
+    // The parameters.js routines simplify passing parameters to the shader. 
+    // Some parameters can be passed when we compile the shader (as #defines),
+    // and others can be passed later as sampler or uniform parameters. The function
+    // "compile_bind" generates the header text, with the appropriate #defines and
+    // parameter declarations.
+    basic_program = buildRasterProgram(gl,compile_bind(
+        get_parameters('basic_program_parameters'), {
+        game_w_px: game_w_px, 
+        game_h_px: game_h_px,
+    })[0]+$('basic_program').text);
+
+    // Redraw when window size changes
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    render();
+}
+
+</script>
+</body>
+</htlm>

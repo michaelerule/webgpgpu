@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<!--
+- Fill the screen with the game environment. No scrolling
+- Top portion of screen is game panel, bottom region console
+- Set up a basic web GL canvas environment that we'll use to draw the game
+- Move setup code into a library ("gpgpu")
+
+Useful
+https://webgl2fundamentals.org/webgl/lessons/webgl-anti-patterns.html
+https://stackoverflow.com/questions/13870677/resize-viewport-canvas-according-to-browser-window-size
+https://github.com/michaelerule/webgpgpu
+-->
+<head>
+<meta charset="utf-8"/>
+<script src="./lib/gpgpu.js"></script>
+<link rel="stylesheet" type="text/css" href="lessons.css">
+</head>
+<body>
+<div id="outer_container">
+<canvas id="game_canvas"></canvas>
+<div id="console_container">controls go here</div>
+</div>
+
+<script id="basic_program" type="x-shader/x-fragment">
+void main() {
+    gl_FragColor = vec4(
+        gl_FragCoord.x<256.?1:0,
+        gl_FragCoord.y<256.?1:0,
+        mod(floor(gl_FragCoord.y/8.),2.),
+        1);
+}
+</script>
+<script>
+
+function render() {
+    gl.viewport(0,0,gl.canvas.width,gl.canvas.height);
+    basic_program();
+}
+
+function resizeCanvas() {
+    var w = canvas.clientWidth;
+    var h = canvas.clientHeight;
+    if (canvas.width!=w||canvas.height!=h) {
+        canvas.width=w; 
+        canvas.height=h; 
+        render();
+    }
+}
+
+// This is the main script that will run when the website loads
+function main()
+{
+    // Retrieve a handle to the canvas element
+    canvas = $("game_canvas");
+    // Try to create a WebGL context on the canvas, abort if it fails
+    gl = getRasterGL(canvas);
+    if (!gl) OUT; 
+    // Bind our example fragment shader as a function
+    basic_program = getRasterProgram(gl,'basic_program');
+    // Redraw when window size changes
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+}
+
+main();
+render();
+</script>
+</body>
+</htlm>

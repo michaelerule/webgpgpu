@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8"/>
+<!--
+- Fill the screen with the game environment. No scrolling
+- Top portion of screen is game panel, bottom region console
+- Set up a basic web GL canvas environment that we'll use to draw the game
+- Move setup code into a library ("gpgpu")
+- Add bounded rendering region, with view scale and coordinates
+- Add mouse control: drag to pan, scroll wheel to zoom in/out
+- Add keyboard control: arrow keys to pan; +/- PgUp/PgDn to zoom
+- Render an image from texture using nearest-neighbor interpolation
+- Create a 2D game environment based on square tiles
+
+This requires defining another rendering layer that computes a tile index, which
+is then passed to the final renderer to generate the visible screen. 
+
+We create this as another WebGL texture "tile_ids"
+
+For an initial demonstration, we combine this with a random number generator
+to randomly shuffle the visible tiles. 
+
+Useful
+https://webgl2fundamentals.org/webgl/lessons/webgl-anti-patterns.html
+https://stackoverflow.com/questions/13870677/resize-viewport-canvas-according-to-browser-window-size
+https://github.com/michaelerule/webgpgpu
+https://stackoverflow.com/a/7732968/900749
+https://www.w3schools.com/js/js_htmldom_events.asp
+https://javascript.info/introduction-browser-events
+https://developer.mozilla.org/en-US/docs/Web/Events
+https://stackoverflow.com/a/11183302/900749
+https://stackoverflow.com/a/11183333/900749
+https://www.javascripttutorial.net/javascript-dom/javascript-keyboard-events/
+https://github.com/michaelerule/webgpgpu/blob/master/examples/Example_15_load_image.html
+https://webglfundamentals.org/webgl/lessons/webgl-cors-permission.html
+https://stackoverflow.com/questions/21540520/how-to-perform-mipmapping-in-webgl
+-->
+<head>
+<script>
+window.addEventListener('load', function() {
+    load_textures();
+})
+</script>
+<script src="./lib/gpgpu.js"></script>
+<script src="./lib/gpurand.js"></script>
+<script src="./lib/parameters.js"></script>
+<script src="./user_event_handlers.js"></script>
+<script src="./webgl_game_initialization_helpers.js"></script>
+<script src="./base64_encoded_textures.js"></script>
+<link rel="stylesheet" type="text/css" href="lessons.css">
+</head>
+<body>
+<div id="outer_container">
+<div id="controls_top"></div>
+<canvas id="game_canvas"></canvas>
+<div id="controls_bottom"></div>
+</div>
+
+<!--
+The parameters.js routines simplify passing parameters to the shader. 
+Some parameters can be passed when we compile the shader (as #defines),
+and others can be passed later as sampler or uniform parameters. The function
+"compile_bind" generates the header text, with the appropriate #defines and
+parameter declarations.
+
+To render from a texture, we create a new "sampler2D" parameter called "tiles".
+-->
+<script id="basic_program_parameters" type="x-shader/x-fragment">
+sampler2D tiles;
+sampler2D tile_ids;
+vec2 game_size;
+vec2 screen_size;
+vec2 texture_size;
+ivec2 tile_size;
+int tiles_across;
+vec3 view_transform;
+</script>
+<script id="basic_program" type="x-shader/x-fragment">
+void main() {
+    vec2 p = gl_FragCoord.xy;
+
+    // Transform from screen coordinates to game pixel coordinates
+    // Use the center of the screen as the reference point
+    // We'll need to know the focus point of the game (center it),
+    // The canvas width and height, and any scale transformation. 
+    // The transform is computed on the CPU and passed as parameter 
+    // `view_transform`.
+    p = p*view_transform.z + view_transform.xy;
+
+    // Exit if coordinate is not inside visible game region
+    gl_FragColor = vec4(0.2,0.2,0.2,0.0);
+    if (p.x<0.0||p.y<0.0||p.x>screen_size.x||p.y>screen_size.y) {
+        return;
+    }
+    // Get tile info: use red channel to decode a tile ID from 0-255
+    int id = int(floor(texture2D(tile_ids,p/screen_size).r*255.0));
+    // Convert tile ID to tile position
+    ivec2 tile_xy = ivec2(id-tiles_across*(id/tiles_across),id/tiles_across);
+    // We need to calculate our offset into the tile
+    ivec2 q = ivec2(p);
+    ivec2 tile_offset = q-tile_size*(q/tile_size);
+    // This is our tile pixel lookup in pixels
+    ivec2 u = tile_xy*tile_size + tile_offset;
+    // We need to divide by texture size to get correct coordinate
+    gl_FragColor = texture2D(tiles,vec2(u)/128.0);
+    
+}
+</script>
+<script>
+
+// Configuration constants.
+// The game size is now defined in terms of tiles. 
+const game_w_tiles = 80;
+const game_h_tiles = 48;
+// We need to know shape of tiles in the tiles texture, as well as
+// how many tiles across it is
+const tile_w_px    = 8;
+const tile_h_px    = 8;
+const tiles_across = 16;
+// Calculated game shape in pixels
+const game_w_px    = game_w_tiles*tile_w_px;
+const game_h_px    = game_h_tiles*tile_h_px;
+
+// View behavior and limits
+const max_scale    = 8;
+const min_scale    = 2;
+const key_pan      = 10;
+const key_zoom     = 1.1;
+
+// Global variables (mutable)
+var game_focus_x = game_w_px/2;
+var game_focus_y = game_h_px/2;
+var game_scale   = 2.0;
+
+/**
+ * Render game on canvas using current canvas size, scale, and focus point. 
+ */
+function render() {
+    var w = gl.canvas.width;
+    var h = gl.canvas.height;
+    gl.viewport(0,0,w,h);
+    var s = 1.0/game_scale;
+    var x = Math.floor(game_focus_x-w/2*s);
+    var y = Math.floor(game_focus_y-h/2*s);
+    basic_program({
+        tiles:texture,
+        tile_ids:noise,
+        view_transform:[x,y,s]
+    });
+    console.log("Rendered");
+};
+
+/** 
+ * Main script that will run when the website loads
+ */
+function main()
+{
+    gl = init_webgl_canvas();
+
+    // Compile shader with new constants needed to index into the tiles texture
+    bind_basic_program({
+        game_size   :[game_w_tiles,game_h_tiles],
+        tile_size   :[tile_w_px   ,tile_h_px   ],
+        screen_size :[game_w_px   ,game_h_px   ],
+        tiles_across:tiles_across,
+    });
+    
+    // Create tiles texture
+    texture = pixel_art_texture(gl,tiles);
+
+    // Make some noise (random tile ID values)
+    noise  = newBasicFramebuffer(gl,{
+        width:game_w_tiles, 
+        height:game_h_tiles, 
+        mag_filter:gl.NEAREST, 
+        min_filter:gl.LINEAR, 
+        wrap:gl.CLAMP_TO_EDGE});
+    randomize_framebuffer(noise);
+
+    // Set up UI and start.
+    add_event_listeners();
+    resizeCanvas();
+    scale_to_screen();
+    render();
+    console.log("Loaded");
+}
+
+
+/**
+ * Load tiles image from base64 string.
+ * We wait until the image loads before initializing the WebGL environment.
+ * We achieve this by calling main() from the textures "onload" callback.
+ */
+function load_textures() {
+    tiles = new Image();
+    tiles.crossOrigin = "anonymous";
+    tiles.onload = main;
+    tiles.src = base64_textures.tiles;
+}
+</script>
+</body>
+</htlm>

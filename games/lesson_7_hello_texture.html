@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8"/>
+<!--
+- Fill the screen with the game environment. No scrolling
+- Top portion of screen is game panel, bottom region console
+- Set up a basic web GL canvas environment that we'll use to draw the game
+- Move setup code into a library ("gpgpu")
+- Add bounded rendering region, with view scale and coordinates
+- Add mouse control: drag to pan, scroll wheel to zoom in/out
+- Add keyboard control: arrow keys to pan; +/- PgUp/PgDn to zoom
+- Render an image from texture using nearest-neighbor interpolation
+
+We'll need to pull the image from a remote web server that will grant cross 
+origin permission. We can't use local files directly anymore. 
+
+Useful
+https://webgl2fundamentals.org/webgl/lessons/webgl-anti-patterns.html
+https://stackoverflow.com/questions/13870677/resize-viewport-canvas-according-to-browser-window-size
+https://github.com/michaelerule/webgpgpu
+https://stackoverflow.com/a/7732968/900749
+https://www.w3schools.com/js/js_htmldom_events.asp
+https://javascript.info/introduction-browser-events
+https://developer.mozilla.org/en-US/docs/Web/Events
+https://stackoverflow.com/a/11183302/900749
+https://stackoverflow.com/a/11183333/900749
+https://www.javascripttutorial.net/javascript-dom/javascript-keyboard-events/
+https://github.com/michaelerule/webgpgpu/blob/master/examples/Example_15_load_image.html
+https://webglfundamentals.org/webgl/lessons/webgl-cors-permission.html
+https://stackoverflow.com/questions/21540520/how-to-perform-mipmapping-in-webgl
+-->
+<head>
+<script>
+window.addEventListener('load', function() {load_texture();})
+</script>
+<script src="./lib/gpgpu.js"></script>
+<script src="./lib/parameters.js"></script>
+<script src="./user_event_handlers.js"></script>
+<script src="./webgl_game_initialization_helpers.js"></script>
+<link rel="stylesheet" type="text/css" href="lessons.css">
+</head>
+<body>
+<div id="outer_container">
+<div id="controls_top"></div>
+<canvas id="game_canvas"></canvas>
+<div id="controls_bottom"></div>
+</div>
+
+<!--
+The parameters.js routines simplify passing parameters to the shader. 
+Some parameters can be passed when we compile the shader (as #defines),
+and others can be passed later as sampler or uniform parameters. The function
+"compile_bind" generates the header text, with the appropriate #defines and
+parameter declarations.
+
+To render from a texture, we create a new "sampler2D" parameter called "tiles".
+-->
+<script id="basic_program_parameters" type="x-shader/x-fragment">
+sampler2D tiles;
+float game_w_px;
+float game_h_px;
+vec3 view_transform;
+</script>
+<script id="basic_program" type="x-shader/x-fragment">
+void main() {
+    vec2 p = gl_FragCoord.xy;
+
+    // Transform from screen coordinates to game pixel coordinates
+    // Use the center of the screen as the reference point
+    // We'll need to know the focus point of the game (center it),
+    // The canvas width and height, and any scale transformation. 
+    // The transform is computed on the CPU and passed as parameter 
+    // `view_transform`.
+    p.xy = (p.xy*view_transform.z + view_transform.xy);
+
+    // Exit if coordinate is not inside visible game region
+    if (p.x<0.0||p.y<0.0||p.x>game_w_px||p.y>game_h_px) {
+        gl_FragColor = vec4(0.2,0.2,0.2,0.0);
+        return;
+    }
+
+    // Render pixel if it is visible
+    vec2 q = vec2(p.x/game_w_px,p.y/game_h_px);
+    gl_FragColor = texture2D(tiles,q);
+}
+</script>
+<script>
+
+// Configuration constants
+const game_w_px    = 128;
+const game_h_px    = 128;
+const max_scale    = 8;
+const min_scale    = 2;
+const key_pan      = 10;
+const key_zoom     = 1.1;
+const tiles_url    = "http://raw.githubusercontent.com/michaelerule/webgpgpu/master/examples/tiles.png";
+
+// Global variables (mutable)
+var game_focus_x = game_w_px/2;
+var game_focus_y = game_h_px/2;
+var game_scale   = 2.0;
+
+/**
+ * Render game on canvas using current canvas size, scale, and focus point. 
+ */
+function render() {
+    var w = gl.canvas.width;
+    var h = gl.canvas.height;
+    gl.viewport(0,0,w,h);
+    var s = 1.0/game_scale;
+    var x = Math.floor(game_focus_x-w/2*s);
+    var y = Math.floor(game_focus_y-h/2*s);
+    basic_program({
+        tiles:texture,
+        view_transform:[x,y,s]
+    });
+    console.log("Rendered");
+};
+
+/** 
+ * Main script that will run when the website loads
+ */
+function main()
+{
+    gl = init_webgl_canvas();
+    bind_basic_program();
+    texture = pixel_art_texture(gl,tiles);
+    add_event_listeners();
+    resizeCanvas();
+    render();
+    console.log("Loaded");
+}
+
+function load_texture() {
+    /**
+     * Load tiles image from disk and prepare it as a texture.
+     * We wait until the image loads before initializing the WebGL environment.
+     * We achieve this by calling main() from the textures "onload" callback.
+     */
+    tiles = new Image();
+    tiles.crossOrigin = "anonymous";
+    tiles.onload = main;
+    tiles.src = tiles_url;
+}
+</script>
+</body>
+</htlm>
