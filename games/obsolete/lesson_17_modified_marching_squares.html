@@ -64,31 +64,51 @@ int box_charset;
 int background;
 </script>
 <script id="dendrites" type="x-shader/x-fragment">
+#define EXTENDED 160
 // Lookup positions of relevant tiles ("characters")
 void main() {
-
     vec2 dx = vec2(1.0/game_size.x,0.0);
     vec2 dy = vec2(0.0,1.0/game_size.y);
     vec2  p = gl_FragCoord.xy/game_size;
-
     // Get neighborhood
     ivec4 s01 = ivec4(texture2D(game_state,p-dy));
     ivec4 s10 = ivec4(texture2D(game_state,p-dx));
     ivec4 s11 = ivec4(texture2D(game_state,p));
     ivec4 s12 = ivec4(texture2D(game_state,p+dx));
     ivec4 s21 = ivec4(texture2D(game_state,p+dy));
-
     // Cells persist
     int cell = s11.g;
     // How many immediately adjacent?
     int near = s01.g+s10.g+s12.g+s21.g;
     // Get noise
-    vec4 n = texture2D(noise,p);
+    //vec4 n = texture2D(noise,p);
     // Cells randomly added only if they would not clash
-    float next = float(s11.g==1||(near==1&&n.g>0.9));
-
+    //float next = float(s11.g==1||(near==1&&n.g>0.9));
+    float next = float(s11.g);    
     // Use box-drawing characters
-    int id = s11.g==0? background : box_charset+s21.g+s12.g*2+s01.g*4+s10.g*8;
+    int id = s11.g==0? background : box_charset + s21.g+s12.g*2+s01.g*4+s10.g*8;
+    // Extended special cases: account for corners
+    ivec4 s00 = ivec4(texture2D(game_state,p-dy-dx));
+    ivec4 s02 = ivec4(texture2D(game_state,p-dy+dx));
+    ivec4 s20 = ivec4(texture2D(game_state,p+dy-dx));
+    ivec4 s22 = ivec4(texture2D(game_state,p+dy+dx));
+    // No clean way to do this really
+    // Patch corners
+    if      (id== 3) {if (s22.g==1) id=EXTENDED+0;}
+    else if (id== 6) {if (s02.g==1) id=EXTENDED+1;}
+    else if (id== 9) {if (s20.g==1) id=EXTENDED+2;}
+    else if (id==12) {if (s00.g==1) id=EXTENDED+3;}
+    // Patch T junctions
+    else if (id== 7) {int c=s22.g+s02.g*2; if (c>0) id=EXTENDED+ 3+c;}
+    else if (id==11) {int c=s20.g+s22.g*2; if (c>0) id=EXTENDED+ 6+c;}
+    else if (id==13) {int c=s00.g+s20.g*2; if (c>0) id=EXTENDED+ 9+c;}
+    else if (id==14) {int c=s02.g+s00.g*2; if (c>0) id=EXTENDED+12+c;}
+    // Patch + junctions
+    else if (id==15) {
+        int c = s20.g+s22.g*2+s02.g*4+s00.g*8;
+        id=EXTENDED+16+c;
+    }
+
     gl_FragColor = vec4(float(id)/255.0,next,0.0,0.0);
 }
 </script>
@@ -101,7 +121,7 @@ vec2 game_size;
 void main() {
     vec2  p = gl_FragCoord.xy/game_size;
     vec4 c = texture2D(game_state,p);
-    gl_FragColor = vec4(0.0,float(c.g>1.0-1.0/256.0),0.0,0.0);
+    gl_FragColor = vec4(0.0,float(c.g>0.4),0.0,0.0);//1.0-1.0/256.0)
 }
 </script>
 
@@ -168,7 +188,7 @@ const game_w_px    = game_w_tiles*tile_w_px;
 const game_h_px    = game_h_tiles*tile_h_px;
 
 // View behavior and limits
-const max_scale    = 4;
+const max_scale    = 32;
 const min_scale    = 1;
 const key_pan      = 10;
 const key_zoom     = 1.1;
@@ -211,9 +231,8 @@ function main()
     });
 
     // Pick one of four styles at random
-    var style = Math.floor(Math.random()*4);
-    var box_charset = style*16;
-    var background = [242,254,255,249][style];
+    var box_charset = 0;
+    var background = 242;
 
     // Get game program, initializer, and copy program
     game_kernel = bind_program("dendrites",{game_size:[game_w_tiles,game_h_tiles],

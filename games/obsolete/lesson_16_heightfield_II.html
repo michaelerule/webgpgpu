@@ -72,23 +72,42 @@ void main() {
     vec2  p = gl_FragCoord.xy/game_size;
 
     // Get neighborhood
-    ivec4 s01 = ivec4(texture2D(game_state,p-dy));
-    ivec4 s10 = ivec4(texture2D(game_state,p-dx));
-    ivec4 s11 = ivec4(texture2D(game_state,p));
-    ivec4 s12 = ivec4(texture2D(game_state,p+dx));
-    ivec4 s21 = ivec4(texture2D(game_state,p+dy));
+    vec4 s01 = texture2D(game_state,p-dy);
+    vec4 s10 = texture2D(game_state,p-dx);
+    vec4 s11 = texture2D(game_state,p);
+    vec4 s12 = texture2D(game_state,p+dx);
+    vec4 s21 = texture2D(game_state,p+dy);
 
     // Cells persist
-    int cell = s11.g;
+    int cell = int(s11.g>0.0);
+
     // How many immediately adjacent?
-    int near = s01.g+s10.g+s12.g+s21.g;
+    int near = int(s01.g>0.0)+int(s10.g>0.0)+int(s12.g>0.0)+int(s21.g>0.0);
+
+    if (cell>0&&s11.g<1.0) {
+        s11.g = (s11+s01+s10+s12+s21).g/(1.0+float(near));//-1.0/256.0;
+        /*
+        float sum = 0.0;
+        if (s01.g<=s11.g) sum+= max(s01.g,0.1);
+        if (s10.g<=s11.g) sum+= max(s10.g,0.1);
+        if (s21.g<=s11.g) sum+= max(s21.g,0.1);
+        if (s12.g<=s11.g) sum+= max(s12.g,0.1);
+        //sum += max(s01.g,0.001);
+        //sum += max(s10.g,0.001);
+        //sum += max(s21.g,0.001);
+        //sum += max(s12.g,0.001);
+        s11.g=clamp(sum,0.0,0.9);
+        */
+    }
+
     // Get noise
     vec4 n = texture2D(noise,p);
     // Cells randomly added only if they would not clash
-    float next = float(s11.g==1||(near==1&&n.g>0.9));
+    float next = max(s11.g,float(near==1&&n.g>0.9)*0.1);
 
     // Use box-drawing characters
-    int id = s11.g==0? background : box_charset+s21.g+s12.g*2+s01.g*4+s10.g*8;
+    int id = background + int(s11.g*15.999);
+    //==0.0? background : 0;//box_charset+s21.g+s12.g*2+s01.g*4+s10.g*8;
     gl_FragColor = vec4(float(id)/255.0,next,0.0,0.0);
 }
 </script>
@@ -156,8 +175,8 @@ void main() {
 
 // Configuration constants.
 // The game size is now defined in terms of tiles. 
-const game_w_tiles = 160;
-const game_h_tiles = 120;
+const game_w_tiles = 80;
+const game_h_tiles = 60;
 // We need to know shape of tiles in the tiles texture, as well as
 // how many tiles across it is
 const tile_w_px    = 8;
@@ -168,8 +187,8 @@ const game_w_px    = game_w_tiles*tile_w_px;
 const game_h_px    = game_h_tiles*tile_h_px;
 
 // View behavior and limits
-const max_scale    = 4;
-const min_scale    = 1;
+const max_scale    = 8;
+const min_scale    = 2;
 const key_pan      = 10;
 const key_zoom     = 1.1;
 
@@ -211,9 +230,9 @@ function main()
     });
 
     // Pick one of four styles at random
-    var style = Math.floor(Math.random()*4);
+    var style = 0;//Math.floor(Math.random()*4);
     var box_charset = style*16;
-    var background = [242,254,255,249][style];
+    var background = 240-32;//[242,254,255,249][style];
 
     // Get game program, initializer, and copy program
     game_kernel = bind_program("dendrites",{game_size:[game_w_tiles,game_h_tiles],
@@ -250,7 +269,7 @@ function main()
     // Set up UI and start.
     add_event_listeners();
     resizeCanvas();
-    //scale_to_screen();
+    scale_to_screen();
     render();
     console.log("Loaded");
 
@@ -260,7 +279,7 @@ function main()
         game_kernel({game_state:game_state,noise:rng_noise},game_temp);
         copy(game_temp,game_state);
         render();
-        setTimeout(animate,100);
+        setTimeout(animate,50);
     }
     animate();
 }

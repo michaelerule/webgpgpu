@@ -56,7 +56,8 @@ vec2 game_size;
 </script>
 <script id="squares_upsample" type="x-shader/x-fragment">
 // Lookup positions of relevant tiles ("characters")
-#define SQUARES 128
+//#define SQUARES 128
+#define SQUARES (128+16)
 void main() {
     vec2 dx = vec2(1.0/game_size.x,0.0);
     vec2 dy = vec2(0.0,1.0/game_size.y);
@@ -116,8 +117,6 @@ sampler2D noise;
 vec2 game_size;
 </script>
 <script id="update_game" type="x-shader/x-fragment">
-// Lookup positions of relevant tiles ("characters")
-#define SQUARES 128
 void main() {
     vec2 dx = vec2(1.0/game_size.x,0.0);
     vec2 dy = vec2(0.0,1.0/game_size.y);
@@ -255,21 +254,6 @@ function main()
     // Run marching squares
     marching_squares({game_state:game_state},tile_ids);
 
-    // GPU R
-    //copy        = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
-    // Prepare texture for game and RNG state 
-    //game_temp  = newBasicFramebuffer(gl,options);
-    //rng_noise  = newBasicFramebuffer(gl,options);
-    //rng_temp   = newBasicFramebuffer(gl,options);
-    // get GPU random number generator
-    //gpurng = GPUNoise(gl,{W:game_w_tiles,H:game_h_tiles});
-    //randomize_framebuffer(rng_noise);
-    //gpurng(rng_noise,rng_temp);
-    // Run initializer
-    //randomize_framebuffer(game_state);
-    //game_init({game_state:game_state},game_temp);
-    //copy(game_temp,game_state);
-
     // Set up UI and start.
     add_event_listeners();
     resizeCanvas();
@@ -285,7 +269,7 @@ function main()
         marching_squares({game_state:game_state},tile_ids);
         copy(game_temp,game_state);
         render();
-        setTimeout(animate,100);
+        setTimeout(animate,500);
     }
     animate();
 }

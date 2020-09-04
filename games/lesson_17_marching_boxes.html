@@ -60,35 +60,59 @@ color data to save game state
 sampler2D game_state;
 sampler2D noise;
 vec2 game_size;
-int box_charset;
-int background;
 </script>
 <script id="dendrites" type="x-shader/x-fragment">
+#define box_charset 176
+#define EXTENDED    192
+#define background  191
 // Lookup positions of relevant tiles ("characters")
 void main() {
-
     vec2 dx = vec2(1.0/game_size.x,0.0);
     vec2 dy = vec2(0.0,1.0/game_size.y);
     vec2  p = gl_FragCoord.xy/game_size;
-
     // Get neighborhood
     ivec4 s01 = ivec4(texture2D(game_state,p-dy));
     ivec4 s10 = ivec4(texture2D(game_state,p-dx));
     ivec4 s11 = ivec4(texture2D(game_state,p));
     ivec4 s12 = ivec4(texture2D(game_state,p+dx));
     ivec4 s21 = ivec4(texture2D(game_state,p+dy));
-
     // Cells persist
     int cell = s11.g;
     // How many immediately adjacent?
     int near = s01.g+s10.g+s12.g+s21.g;
     // Get noise
-    vec4 n = texture2D(noise,p);
+    //vec4 n = texture2D(noise,p);
     // Cells randomly added only if they would not clash
-    float next = float(s11.g==1||(near==1&&n.g>0.9));
-
+    //float next = float(s11.g==1||(near==1&&n.g>0.9));
+    float next = float(s11.g);    
     // Use box-drawing characters
-    int id = s11.g==0? background : box_charset+s21.g+s12.g*2+s01.g*4+s10.g*8;
+    int id = background;
+    if (s11.g==1) {
+        id = s21.g+s12.g*2+s01.g*4+s10.g*8;
+        // Extended special cases: account for corners
+        ivec4 s00 = ivec4(texture2D(game_state,p-dy-dx));
+        ivec4 s02 = ivec4(texture2D(game_state,p-dy+dx));
+        ivec4 s20 = ivec4(texture2D(game_state,p+dy-dx));
+        ivec4 s22 = ivec4(texture2D(game_state,p+dy+dx));
+        // No clean way to do this really
+        // Patch corners
+
+        if      (id== 3) {id = s22.g==1? EXTENDED+0 : box_charset + id;}
+        else if (id== 6) {id = s02.g==1? EXTENDED+1 : box_charset + id;}
+        else if (id== 9) {id = s20.g==1? EXTENDED+2 : box_charset + id;}
+        else if (id==12) {id = s00.g==1? EXTENDED+3 : box_charset + id;}
+        // Patch T junctions
+        else if (id== 7) {int c=s22.g+s02.g*2; id= c>0? EXTENDED+ 3+c : box_charset + id;}
+        else if (id==11) {int c=s20.g+s22.g*2; id= c>0? EXTENDED+ 6+c : box_charset + id;}
+        else if (id==13) {int c=s00.g+s20.g*2; id= c>0? EXTENDED+ 9+c : box_charset + id;}
+        else if (id==14) {int c=s02.g+s00.g*2; id= c>0? EXTENDED+12+c : box_charset + id;}
+        // Patch + junctions
+        else if (id==15) {
+            int c = s20.g+s22.g*2+s02.g*4+s00.g*8;
+            id=EXTENDED+16+c;
+        }
+        else id += box_charset;
+    }
     gl_FragColor = vec4(float(id)/255.0,next,0.0,0.0);
 }
 </script>
@@ -101,7 +125,7 @@ vec2 game_size;
 void main() {
     vec2  p = gl_FragCoord.xy/game_size;
     vec4 c = texture2D(game_state,p);
-    gl_FragColor = vec4(0.0,float(c.g>1.0-1.0/256.0),0.0,0.0);
+    gl_FragColor = vec4(0.0,float(c.g>0.4),0.0,0.0);//1.0-1.0/256.0)
 }
 </script>
 
@@ -168,7 +192,7 @@ const game_w_px    = game_w_tiles*tile_w_px;
 const game_h_px    = game_h_tiles*tile_h_px;
 
 // View behavior and limits
-const max_scale    = 4;
+const max_scale    = 32;
 const min_scale    = 1;
 const key_pan      = 10;
 const key_zoom     = 1.1;
@@ -210,15 +234,9 @@ function main()
         tiles_across:tiles_across,
     });
 
-    // Pick one of four styles at random
-    var style = Math.floor(Math.random()*4);
-    var box_charset = style*16;
-    var background = [242,254,255,249][style];
 
     // Get game program, initializer, and copy program
-    game_kernel = bind_program("dendrites",{game_size:[game_w_tiles,game_h_tiles],
-                                            box_charset:box_charset,
-                                            background:background});
+    game_kernel = bind_program("dendrites",{game_size:[game_w_tiles,game_h_tiles]});
     game_init   = bind_program("bitnoise" ,{game_size:[game_w_tiles,game_h_tiles]});
     copy        = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
 
