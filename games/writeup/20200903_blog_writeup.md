@@ -1,7 +1,7 @@
 
 ## Box Drawing Characters + Marching Squares = Marching Boxes 
 
-(I'm sure this has been solved before under different names, but I noticed it wasn't on Wikipedia so I thought I'd write a short note)
+(I'm sure this has been solved before under different names, but it wasn't on Wikipedia so here's short note)
 
 Sebastian Blomfield's ["Lord of the Manor" game](https://www.lordofthemanor.io/) inspired me to explore retro-game engine coding. I'm experimenting in WebGl in the browser. So far, I've got a basic tile-shader that renders [tiled 2D game environments](https://en.wikipedia.org/wiki/Tile-based_video_game) (e.g. [game of life](https://michaelerule.github.io/webgpgpu/games/lesson_11_game_of_life.html), [forest fire simulation](https://michaelerule.github.io/webgpgpu/games/lesson_13_forest_fire.html)). What if I want to draw adjacent tiles of e.g. walls as continuous? 
 
@@ -28,13 +28,18 @@ See [here](https://michaelerule.github.io/webgpgpu/games/lesson_12_dendrites.htm
 
 ![](mseg.png)
 
-Box-drawing tiles are good for lines, like the roads or pipes in Sim City. Marching squares is good for borders/contours. Can we combine these and get the best of both worlds, and that renders tiles based on their current value and the values of their immediate neighbors? 
+Box-drawing tiles are good for lines, and marching squares is good for borders/contours. Can we combine these and get an algorithm that is the best of both worlds, and that renders tiles based on their current value and the values of their neighbors? 
 
-Yes. I'm not sure what the name of this algorithm is. I'm calling it "marching boxes" for now. Marching-boxes extends the box-drawing tiles with 16 new tiles to handle filled regions. These provide versions of the corner, T-junction, and cross-junction tiles that account for the possibility of nearby filled-in regions. The resulting tiles can render both smooth contours and sharp lines. 
+Yes. I'm not sure what the name of this algorithm is. I'm calling it "marching boxes" for now. Marching-boxes extends the box-drawing tiles with 15 new tiles (below). These provide versions of the corner, T-junction, and cross-junction tiles that account for the possibility of nearby filled-in regions. The resulting tiles can render both smooth contours and sharp lines. 
 
-![](extended_codes.png)
+![](extended_codes_2.png)
+
+Including a background and foreground tiles, marching boxes uses 48 tiles.
+
+![](marching_boxes_tiles_big.png)
 
 This could be nice for any pattern that has a mixture of lines and enclosed regions, like a dungeon connected by hallways, or a water system that includes both lakes and rivers. 
 
 ![](mbeg.png)
 
+[Click here to view a WebGL demo of marching-boxes tile rendering](https://michaelerule.github.io/webgpgpu/games/lesson_17_marching_boxes.html)
