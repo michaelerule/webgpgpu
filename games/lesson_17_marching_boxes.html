@@ -53,83 +53,6 @@ window.addEventListener('load', function() {
 </div>
 
 <!--
-A new shader for the game logic. This operates on a tiled grid, and uses
-color data to save game state
--->
-<script id="dendrites_parameters" type="x-shader/x-fragment">
-sampler2D game_state;
-sampler2D noise;
-vec2 game_size;
-</script>
-<script id="dendrites" type="x-shader/x-fragment">
-#define box_charset 176
-#define EXTENDED    192
-#define background  191
-// Lookup positions of relevant tiles ("characters")
-void main() {
-    vec2 dx = vec2(1.0/game_size.x,0.0);
-    vec2 dy = vec2(0.0,1.0/game_size.y);
-    vec2  p = gl_FragCoord.xy/game_size;
-    // Get neighborhood
-    ivec4 s01 = ivec4(texture2D(game_state,p-dy));
-    ivec4 s10 = ivec4(texture2D(game_state,p-dx));
-    ivec4 s11 = ivec4(texture2D(game_state,p));
-    ivec4 s12 = ivec4(texture2D(game_state,p+dx));
-    ivec4 s21 = ivec4(texture2D(game_state,p+dy));
-    // Cells persist
-    int cell = s11.g;
-    // How many immediately adjacent?
-    int near = s01.g+s10.g+s12.g+s21.g;
-    // Get noise
-    //vec4 n = texture2D(noise,p);
-    // Cells randomly added only if they would not clash
-    //float next = float(s11.g==1||(near==1&&n.g>0.9));
-    float next = float(s11.g);    
-    // Use box-drawing characters
-    int id = background;
-    if (s11.g==1) {
-        id = s21.g+s12.g*2+s01.g*4+s10.g*8;
-        // Extended special cases: account for corners
-        ivec4 s00 = ivec4(texture2D(game_state,p-dy-dx));
-        ivec4 s02 = ivec4(texture2D(game_state,p-dy+dx));
-        ivec4 s20 = ivec4(texture2D(game_state,p+dy-dx));
-        ivec4 s22 = ivec4(texture2D(game_state,p+dy+dx));
-        // No clean way to do this really
-        // Patch corners
-
-        if      (id== 3) {id = s22.g==1? EXTENDED+0 : box_charset + id;}
-        else if (id== 6) {id = s02.g==1? EXTENDED+1 : box_charset + id;}
-        else if (id== 9) {id = s20.g==1? EXTENDED+2 : box_charset + id;}
-        else if (id==12) {id = s00.g==1? EXTENDED+3 : box_charset + id;}
-        // Patch T junctions
-        else if (id== 7) {int c=s22.g+s02.g*2; id= c>0? EXTENDED+ 3+c : box_charset + id;}
-        else if (id==11) {int c=s20.g+s22.g*2; id= c>0? EXTENDED+ 6+c : box_charset + id;}
-        else if (id==13) {int c=s00.g+s20.g*2; id= c>0? EXTENDED+ 9+c : box_charset + id;}
-        else if (id==14) {int c=s02.g+s00.g*2; id= c>0? EXTENDED+12+c : box_charset + id;}
-        // Patch + junctions
-        else if (id==15) {
-            int c = s20.g+s22.g*2+s02.g*4+s00.g*8;
-            id=EXTENDED+16+c;
-        }
-        else id += box_charset;
-    }
-    gl_FragColor = vec4(float(id)/255.0,next,0.0,0.0);
-}
-</script>
-
-<script id="bitnoise_parameters" type="x-shader/x-fragment">
-sampler2D game_state;
-vec2 game_size;
-</script>
-<script id="bitnoise" type="x-shader/x-fragment">
-void main() {
-    vec2  p = gl_FragCoord.xy/game_size;
-    vec4 c = texture2D(game_state,p);
-    gl_FragColor = vec4(0.0,float(c.g>0.4),0.0,0.0);//1.0-1.0/256.0)
-}
-</script>
-
-<!--
 The parameters.js routines simplify passing parameters to the shader. 
 Some parameters can be passed when we compile the shader (as #defines),
 and others can be passed later as sampler or uniform parameters. The function
@@ -176,8 +99,86 @@ void main() {
     gl_FragColor = texture2D(tiles,vec2(u)/128.0);
 }
 </script>
-<script>
 
+<!--
+A new shader for the game logic. This operates on a tiled grid, and uses
+color data to save game state
+-->
+<script id="dendrites_parameters" type="x-shader/x-fragment">
+sampler2D game_state;
+sampler2D noise;
+vec2 game_size;
+</script>
+<script id="dendrites" type="x-shader/x-fragment">
+#define box_charset 176
+#define EXTENDED    192
+#define background  191
+// Lookup positions of relevant tiles ("characters")
+void main() {
+    vec2 dx = vec2(1.0/game_size.x,0.0);
+    vec2 dy = vec2(0.0,1.0/game_size.y);
+    vec2  p = gl_FragCoord.xy/game_size;
+    // Get neighborhood
+    ivec4 s01 = ivec4(texture2D(game_state,p-dy));
+    ivec4 s10 = ivec4(texture2D(game_state,p-dx));
+    ivec4 s11 = ivec4(texture2D(game_state,p));
+    ivec4 s12 = ivec4(texture2D(game_state,p+dx));
+    ivec4 s21 = ivec4(texture2D(game_state,p+dy));
+    // Nose to change things up a bit
+    vec4 n = texture2D(noise,p);
+    // Cells persist
+    int cell = s11.g;
+    // How many immediately adjacent?
+    int near = s01.g+s10.g+s12.g+s21.g;
+    // Get noise
+    //vec4 n = texture2D(noise,p);
+    // Cells randomly added only if they would not clash
+    //float next = float(s11.g==1||(near==1&&n.g>0.9));
+    float next = float(n.g<1.0/256.0?int(n.b>0.5):s11.g);    
+    // Use box-drawing characters
+    int id = background;
+    if (s11.g==1) {
+        id = s21.g+s12.g*2+s01.g*4+s10.g*8;
+        // Extended special cases: account for corners
+        ivec4 s00 = ivec4(texture2D(game_state,p-dy-dx));
+        ivec4 s02 = ivec4(texture2D(game_state,p-dy+dx));
+        ivec4 s20 = ivec4(texture2D(game_state,p+dy-dx));
+        ivec4 s22 = ivec4(texture2D(game_state,p+dy+dx));
+        // No clean way to do this really
+        // Patch corners
+        if      (id== 3) {id = s22.g==1? EXTENDED+0 : box_charset + id;}
+        else if (id== 6) {id = s02.g==1? EXTENDED+1 : box_charset + id;}
+        else if (id== 9) {id = s20.g==1? EXTENDED+2 : box_charset + id;}
+        else if (id==12) {id = s00.g==1? EXTENDED+3 : box_charset + id;}
+        // Patch T junctions
+        else if (id== 7) {int c=s22.g+s02.g*2; id= c>0? EXTENDED+ 3+c : box_charset + id;}
+        else if (id==11) {int c=s20.g+s22.g*2; id= c>0? EXTENDED+ 6+c : box_charset + id;}
+        else if (id==13) {int c=s00.g+s20.g*2; id= c>0? EXTENDED+ 9+c : box_charset + id;}
+        else if (id==14) {int c=s02.g+s00.g*2; id= c>0? EXTENDED+12+c : box_charset + id;}
+        // Patch + junctions
+        else if (id==15) {
+            int c = s20.g+s22.g*2+s02.g*4+s00.g*8;
+            id=EXTENDED+16+c;
+        }
+        else id += box_charset;
+    }
+    gl_FragColor = vec4(float(id)/255.0,next,0.0,0.0);
+}
+</script>
+
+<script id="bitnoise_parameters" type="x-shader/x-fragment">
+sampler2D game_state;
+vec2 game_size;
+</script>
+<script id="bitnoise" type="x-shader/x-fragment">
+void main() {
+    vec2  p = gl_FragCoord.xy/game_size;
+    vec4 c = texture2D(game_state,p);
+    gl_FragColor = vec4(0.0,float(c.g>0.4),0.0,0.0);//1.0-1.0/256.0)
+}
+</script>
+
+<script>
 // Configuration constants.
 // The game size is now defined in terms of tiles. 
 const game_w_tiles = 160;
