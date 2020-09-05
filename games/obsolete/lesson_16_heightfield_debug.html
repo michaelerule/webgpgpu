@@ -49,6 +49,71 @@ window.addEventListener('load', function() {
 <canvas id="game_canvas" style="height:100%;"></canvas>
 </div>
 
+<!-- tile shader -->
+<script id="tile_shader_parameters" type="x-shader/x-fragment">
+sampler2D tiles;
+sampler2D tile_ids;
+vec2 game_size;
+vec2 screen_size;
+vec2 texture_size;
+vec2 tile_size;
+int  tiles_across;
+vec3 view_transform;
+</script>
+<script id="tile_shader" type="x-shader/x-fragment">
+void main() {
+    // Transform from screen coordinates to game pixel coordinates
+    vec2 q = gl_FragCoord.xy;
+    vec2 p = (gl_FragCoord.xy*view_transform.z + view_transform.xy)/(game_size/(game_size-1.0));
+    // Exit if coordinate is not inside visible game region
+    //gl_FragColor = vec4(0.2,0.2,0.2,0.0);
+    //if (p.x<0.0||p.y<0.0||p.x>screen_size.x||p.y>screen_size.y) return;
+
+    // Get tile info: use red channel to decode a tile ID from 0-255
+    int id = 255-int(floor(texture2D(tile_ids,p/screen_size).r*255.0));
+    // Convert tile ID to tile position
+    ivec2 tile_xy = ivec2(id-tiles_across*(id/tiles_across),id/tiles_across);
+    // We need to calculate our offset into the tile
+    //ivec2 w = ivec2(p);
+    //ivec2 tile_offset = w-int(tile_size)*(w/int(tile_size));
+    vec2 tile_offset = floor(mod(p*game_size/(game_size-1.0),tile_size));
+
+    // This is our tile pixel lookup in pixels
+    ivec2 w = tile_xy*int(tile_size) + ivec2(tile_offset);
+    // We need to divide by texture size to get correct coordinate
+    gl_FragColor = texture2D(tiles,vec2(w)/(float(tiles_across)*tile_size));
+
+    //gl_FragColor = texture2D(tile_ids,p/screen_size);
+
+    //texture2D(tiles,vec2(u)/128.0);
+    
+    // Carefully render a perfect 1 pixel grid at both game and screen scales
+
+    // Shade game pixels at the edge of each tile
+    vec2 offset = floor(mod(p*game_size/(game_size-1.0),tile_size));
+    if (offset.x==0.0||offset.y==0.0)
+        gl_FragColor = vec4(0.5,0.0,1.0,0.0)*0.5+gl_FragColor*0.5;
+    if (offset.x==tile_size.x-1.0||offset.y==tile_size.y-1.0)
+        gl_FragColor = vec4(0.0,0.0,1.0,0.0)*0.5+gl_FragColor*0.5;
+
+    if (mod(q.x,2.0)!=mod(q.y,2.0)) {
+        // This shades the screen pixels at the edge of each tile
+        // Depending on scale, screen_tile_size can take on fractional values
+        vec2 screen_tile_size   = tile_size/view_transform.z;
+        offset = floor(mod(q+view_transform.xy/view_transform.z,screen_tile_size));
+        // Start of each screen tile
+        if (offset.x==0.0||offset.y==0.0)
+            gl_FragColor = vec4(0.0,1.0,0.0,0.0);
+        // End of each screen tile
+        offset = floor(mod(q+1.0+view_transform.xy/view_transform.z,screen_tile_size));
+        if (offset.x==0.0||offset.y==0.0)
+            gl_FragColor = vec4(1.0,0.0,0.0,0.0);
+    }
+
+    if (p.x<0.0||p.y<0.0||p.x>=screen_size.x||p.y>=screen_size.y) gl_FragColor*=0.25;
+}
+</script>
+
 <script id="update_game_parameters" type="x-shader/x-fragment">
 sampler2D game_state;
 sampler2D noise;
@@ -85,8 +150,8 @@ void main() {
 
 // Configuration constants.
 // The game size is now defined in terms of tiles. 
-const game_w_tiles = 50;
-const game_h_tiles = 50;
+const game_w_tiles = 3;
+const game_h_tiles = 3;
 // We need to know shape of tiles in the tiles texture, as well as
 // how many tiles across it is
 const tile_w_px    = 8;
@@ -127,7 +192,14 @@ function main()
     // Create tiles texture
     texture = pixel_art_texture(gl,tiles);
     // Compile shader with new constants needed to index into the tiles texture
-    tile_shader = get_tile_shader(gl,game_w_tiles,game_h_tiles,tile_w_px,tile_h_px,tiles_across);
+    // Excepts arguments twice as big as usual due to 2x upsampling from
+    // marching squares.
+    tile_shader = bind_program("tile_shader",{
+        game_size   :[game_w_tiles,game_h_tiles],
+        tile_size   :[tile_w_px   ,tile_h_px   ],
+        screen_size :[game_w_px-tile_w_px   ,game_h_px-tile_h_px   ],
+        tiles_across:tiles_across,
+    });
     // Initial game state: set to random noise
     options = {
         width:game_w_tiles, 

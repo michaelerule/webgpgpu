@@ -65,11 +65,9 @@ vec2 game_size;
 #define DIED    80
 #define SHADES  240
 void main() {
-
     vec2 dx = vec2(1.0/game_size.x,0.0);
     vec2 dy = vec2(0.0,1.0/game_size.y);
     vec2  p = gl_FragCoord.xy/game_size;
-
     // Get neighborhood
     vec4 s00 = texture2D(game_state,p-dy-dx);
     vec4 s01 = texture2D(game_state,p-dy);
@@ -80,79 +78,23 @@ void main() {
     vec4 s20 = texture2D(game_state,p+dy-dx);
     vec4 s21 = texture2D(game_state,p+dy);
     vec4 s22 = texture2D(game_state,p+dy+dx);
-    
     // Current cell and neighborhood cell density count
     float cell = s11.g;
     float near = s00.g+s01.g+s02.g+s10.g+s12.g+s20.g+s21.g+s22.g;
     float next = (cell>0.5&&near>1.5&&near<3.5||near>2.5&&near<3.5)?1.0:0.0;
-
     // Diffusing state: average neighborhood with decay; add density if live
     float diffuse = (s01.b+s10.b+s11.b+s12.b+s21.b)*0.2;
     diffuse = max(diffuse*0.95,next);
-
     // Tile ID: 
     int id = 
         (cell>0.5&&next>0.5)? MATURE :
         (cell>0.5&&next<0.5)? DIED :
         (cell<0.5&&next>0.5)? NEWBORN :
         SHADES + int((1.0-diffuse)*16.0)+1;
-    //gl_FragColor = vec4(cell);//
     gl_FragColor = vec4(float(id)/256.0,next,diffuse,0.0);
 }
 </script>
-
-<!--
-The parameters.js routines simplify passing parameters to the shader. 
-Some parameters can be passed when we compile the shader (as #defines),
-and others can be passed later as sampler or uniform parameters. The function
-"compile_bind" generates the header text, with the appropriate #defines and
-parameter declarations.
-
-To render from a texture, we create a new "sampler2D" parameter called "tiles".
--->
-<script id="basic_program_parameters" type="x-shader/x-fragment">
-sampler2D tiles;
-sampler2D tile_ids;
-vec2 game_size;
-vec2 screen_size;
-vec2 texture_size;
-ivec2 tile_size;
-int tiles_across;
-vec3 view_transform;
-</script>
-<script id="basic_program" type="x-shader/x-fragment">
-void main() {
-    vec2 p = gl_FragCoord.xy;
-    // Transform from screen coordinates to game pixel coordinates
-    // Use the center of the screen as the reference point
-    // We'll need to know the focus point of the game (center it),
-    // The canvas width and height, and any scale transformation. 
-    // The transform is computed on the CPU and passed as parameter 
-    // `view_transform`.
-    p = p*view_transform.z + view_transform.xy;
-    // Exit if coordinate is not inside visible game region
-    gl_FragColor = vec4(0.2,0.2,0.2,0.0);
-    if (p.x<0.0||p.y<0.0||p.x>screen_size.x||p.y>screen_size.y) {
-        return;
-    }
-    // Get tile info: use red channel to decode a tile ID from 0-255
-    int id = 255-int(floor(texture2D(tile_ids,p/screen_size).r*255.0));
-    // Convert tile ID to tile position
-    ivec2 tile_xy = ivec2(id-tiles_across*(id/tiles_across),id/tiles_across);
-    // We need to calculate our offset into the tile
-    ivec2 q = ivec2(p);
-    ivec2 tile_offset = q-tile_size*(q/tile_size);
-    // Coordinates are a bit weird, fix this.
-    tile_xy.x = tiles_across-1-tile_xy.x;
-    // This is our tile pixel lookup in pixels
-    ivec2 u = tile_xy*tile_size + tile_offset;
-    // We need to divide by texture size to get correct coordinate
-    gl_FragColor = texture2D(tiles,vec2(u)/128.0);
-    //gl_FragColor = texture2D(tile_ids,p/screen_size);
-}
-</script>
 <script>
-
 // Configuration constants.
 // The game size is now defined in terms of tiles. 
 const game_w_tiles = 20;
@@ -165,18 +107,15 @@ const tiles_across = 16;
 // Calculated game shape in pixels
 const game_w_px    = game_w_tiles*tile_w_px;
 const game_h_px    = game_h_tiles*tile_h_px;
-
 // View behavior and limits
 const max_scale    = 8;
 const min_scale    = 2;
 const key_pan      = 10;
 const key_zoom     = 1.1;
-
 // Global variables (mutable)
 var game_focus_x = game_w_px/2;
 var game_focus_y = game_h_px/2;
 var game_scale   = 2.0;
-
 /**
  * Render game on canvas using current canvas size, scale, and focus point. 
  */
@@ -187,39 +126,22 @@ function render() {
     var s = 1.0/game_scale;
     var x = Math.floor(game_focus_x-w/2*s);
     var y = Math.floor(game_focus_y-h/2*s);
-    basic_program({
-        tiles:texture,
-        tile_ids:game_state,
-        view_transform:[x,y,s]
-    });
+    tile_shader({tiles:texture,tile_ids:game_state,view_transform:[x,y,s]});
 };
 
 /** 
  * Main script that will run when the website loads
  */
-function main()
-{
+function main() {
     gl = init_webgl_canvas();
-
     // Compile shader with new constants needed to index into the tiles texture
-    basic_program = bind_program("basic_program",{
-        game_size   :[game_w_tiles,game_h_tiles],
-        tile_size   :[tile_w_px   ,tile_h_px   ],
-        screen_size :[game_w_px   ,game_h_px   ],
-        tiles_across:tiles_across,
-    });
-
+    tile_shader = get_tile_shader(gl,game_w_tiles,game_h_tiles,tile_w_px,tile_h_px,tiles_across);
     // Get game program
-    game_kernel = bind_program("game_of_life",{
-        game_size   :[game_w_tiles,game_h_tiles],
-    });
-
+    game_kernel = bind_program("game_of_life",{game_size:[game_w_tiles,game_h_tiles],});
     // Get copy program
     copy = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
-    
     // Create tiles texture
     texture = pixel_art_texture(gl,tiles);
-
     // Prepare texture for game state
     options = {
         width:game_w_tiles, 
@@ -231,24 +153,21 @@ function main()
     game_temp  = newBasicFramebuffer(gl,options);
     randomize_framebuffer(game_state);
     randomize_framebuffer(game_temp);
-
     // Set up UI and start.
     add_event_listeners();
     resizeCanvas();
     scale_to_screen();
     render();
     console.log("Loaded");
-
-    // Start an animation loop
+    // Start animation loop
     function animate(){
         game_kernel({game_state:game_state},game_temp);
         copy(game_temp,game_state);
         render();
-        setTimeout(animate,100);
+        setTimeout(animate,200);
     }
     animate();
 }
-
 
 /**
  * Load tiles image from base64 string.

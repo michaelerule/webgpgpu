@@ -42,7 +42,6 @@ window.addEventListener('load', function() {load_texture();})
 <body>
 <div id="outer_container">
 <div id="controls_top"></div>
-<div id="controls_top"></div>
 <canvas id="game_canvas"></canvas>
 <div id="controls_bottom"></div>
 </div>
@@ -81,7 +80,7 @@ void main() {
     }
 
     // Render pixel if it is visible
-    vec2 q = vec2(p.x/game_w_px,p.y/game_h_px)*2.0;
+    vec2 q = vec2(p.x/game_w_px,p.y/game_h_px);
     gl_FragColor = texture2D(tiles,q);
 }
 </script>

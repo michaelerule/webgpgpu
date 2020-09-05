@@ -3,6 +3,35 @@
  *
  */
 
+/**
+ * Pase a list of types parameters
+ * @param {string} text: multi-line string of typed WebGL parameter declarations 
+ */
+function parse_parameters(text) {
+    var lines = text.split('\n');
+    var parameters = {};
+    for(var i=0; i<lines.length; i++) {
+        var line  = lines[i];
+        line = line.split('//')[0]; // remove comment if present
+        // remove trailing and leading whitespace, and trailing
+        // semicolon if present.
+        line = line.replace(/^[ ]+|[ ;]+$/g,'');
+        // collapse whitespace into single spacs
+        line = line.replace(/\s\s+/g, ' ');
+        var words = line.split(' ');
+        if (words.length<2) continue;
+        var type  = words[0];
+        var name  = words[1];
+        var value = null;
+        if (line.indexOf('=')>=0)
+            value = eval(line.split('=')[1]);
+        // todo: do some validation and error handling
+        parameters[name]={type:type,value:value};
+        //console.log(name,Object.keys(parameters));
+    }
+    //console.log(parameters);
+    return parameters;
+}
 
 /**
  * Parameters are passed to shaders as a mixture of uniforms and
@@ -22,28 +51,7 @@ function get_parameters(id) {
         console.log("Could not locate program "+fragment);
         return;
     }
-    parameters = {}
-    var lines = $(id).text.split('\n');
-    for(var i=0; i<lines.length; i++) {
-        var line  = lines[i];
-        line = line.split('//')[0]; // remove comment if present
-        // remove trailing and leading whitespace, and trailing
-        // semicolon if present.
-        line = line.replace(/^[ ]+|[ ;]+$/g,'');
-        var words = line.split(' ');
-        if (words.length<2) continue;
-        var type  = words[0];
-        var name  = words[1];
-        var value = null;
-        if (line.indexOf('=')>=0) {
-            value = eval(line.split('=')[1]);
-        }
-        // todo: do some validation and error handling
-        parameters[name]={type:type,value:value};
-        //console.log(name,Object.keys(parameters));
-    }
-    //console.log(parameters);
-    return parameters;
+    return parse_parameters($(id).text);
 }
 
 /**

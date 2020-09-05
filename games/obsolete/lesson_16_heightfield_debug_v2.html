@@ -11,14 +11,9 @@
 - Add keyboard control: arrow keys to pan; +/- PgUp/PgDn to zoom
 - Render an image from texture using nearest-neighbor interpolation
 - Create a 2D game environment based on square tiles
-
-This requires defining another rendering layer that computes a tile index, which
-is then passed to the final renderer to generate the visible screen. 
-
-We create this as another WebGL texture "tile_ids"
-
-For an initial demonstration, we combine this with a random number generator
-to randomly shuffle the visible tiles. 
+- Build a game of life demo using the tiles 
+- Build a squares_upsample fire demo using the tiles
+- Implement marching squares using full-sized tiles
 
 Useful
 https://webgl2fundamentals.org/webgl/lessons/webgl-anti-patterns.html
@@ -51,9 +46,7 @@ window.addEventListener('load', function() {
 </head>
 <body>
 <div id="outer_container">
-<div id="controls_top"></div>
-<canvas id="game_canvas"></canvas>
-<div id="controls_bottom"></div>
+<canvas id="game_canvas" style="height:100%;"></canvas>
 </div>
 
 <!--Tile shader: render 2D tiles using 8-bit ID passed as texture R channel-->
@@ -115,11 +108,45 @@ void main() {
     }
 }
 </script>
+
+<script id="update_game_parameters" type="x-shader/x-fragment">
+sampler2D game_state;
+sampler2D noise;
+vec2 game_size;
+</script>
+<script id="update_game" type="x-shader/x-fragment">
+void main() {
+    vec2 dx = vec2(1.0/game_size.x,0.0);
+    vec2 dy = vec2(0.0,1.0/game_size.y);
+    // Get state and noise
+    vec2 p = gl_FragCoord.xy/game_size;
+    vec4 s = texture2D(game_state,p);
+    vec4 n = texture2D(noise,p);
+    // Get neighborhood
+    vec4 s01 = texture2D(game_state,p-dy);
+    vec4 s10 = texture2D(game_state,p-dx);
+    vec4 s11 = texture2D(game_state,p);
+    vec4 s12 = texture2D(game_state,p+dx);
+    vec4 s21 = texture2D(game_state,p+dy);
+    // Diffuse
+    vec4 m = 0.05*((s01+s10+s11+s12+s21)*0.2) + 0.95*s;
+    // Exaggerate
+    m = m*1.008-0.004;
+    // Noise
+    m = m+0.15*(n-0.5);
+    m.a = clamp(m.b,0.0,1.0);
+    int id = 240-16+int(m.a*15.999);
+    if (id>255) id=255;
+    gl_FragColor = vec4(float(id)/255.0,m.gba);
+}
+</script>
+
 <script>
+
 // Configuration constants.
 // The game size is now defined in terms of tiles. 
-const game_w_tiles = 80;
-const game_h_tiles = 48;
+const game_w_tiles = 60;
+const game_h_tiles = 40;
 // We need to know shape of tiles in the tiles texture, as well as
 // how many tiles across it is
 const tile_w_px    = 8;
@@ -129,7 +156,7 @@ const tiles_across = 16;
 const game_w_px    = game_w_tiles*tile_w_px;
 const game_h_px    = game_h_tiles*tile_h_px;
 // View behavior and limits
-const max_scale    = 8;
+const max_scale    = 32;
 const min_scale    = 2;
 const key_pan      = 10;
 const key_zoom     = 1.1;
@@ -137,6 +164,7 @@ const key_zoom     = 1.1;
 var game_focus_x = game_w_px/2;
 var game_focus_y = game_h_px/2;
 var game_scale   = 2.0;
+
 /**
  * Render game on canvas using current canvas size, scale, and focus point. 
  */
@@ -147,37 +175,74 @@ function render() {
     var s = 1.0/game_scale;
     var x = Math.floor(game_focus_x-w/2*s);
     var y = Math.floor(game_focus_y-h/2*s);
-    tile_shader({tiles:texture,tile_ids:noise,view_transform:[x,y,s]});
-    console.log("Rendered");
+    tile_shader({tiles:texture,tile_ids:game_state,view_transform:[x,y,s]});
 };
+
 /** 
  * Main script that will run when the website loads
  */
-function main() {
+function main()
+{
     gl = init_webgl_canvas();
+    // Create tiles texture
+    texture = pixel_art_texture(gl,tiles);
     // Compile shader with new constants needed to index into the tiles texture
+    // Excepts arguments twice as big as usual due to 2x upsampling from
+    // marching squares.
     tile_shader = bind_program("tile_shader",{
         game_size   :[game_w_tiles,game_h_tiles],
         tile_size   :[tile_w_px,tile_h_px],
         screen_size :[game_w_px,game_h_px],
-        tiles_across:tiles_across});
-    // Create tiles texture
-    texture = pixel_art_texture(gl,tiles);
-    // Make some noise (random tile ID values)
-    noise  = newBasicFramebuffer(gl,{
+        tiles_across:tiles_across,
+    });
+    // Initial game state: set to random noise
+    options = {
         width:game_w_tiles, 
         height:game_h_tiles, 
         mag_filter:gl.NEAREST, 
         min_filter:gl.LINEAR, 
-        wrap:gl.CLAMP_TO_EDGE});
-    randomize_framebuffer(noise);
+        wrap:gl.CLAMP_TO_EDGE}
+    game_state = newBasicFramebuffer(gl,options);
+    game_temp  = newBasicFramebuffer(gl,options);
+    rng_noise  = newBasicFramebuffer(gl,options);
+    rng_temp   = newBasicFramebuffer(gl,options);
+    randomize_framebuffer(game_state);
+    randomize_framebuffer(rng_noise);
+    // Tile storage
+    options = {
+        width:game_w_tiles, 
+        height:game_h_tiles, 
+        mag_filter:gl.NEAREST, 
+        min_filter:gl.LINEAR, 
+        wrap:gl.CLAMP_TO_EDGE}
+    tile_ids = newBasicFramebuffer(gl,options);
+    // Get GPU RNG kernel
+    gpurng = GPUNoise(gl,{W:game_w_tiles,H:game_h_tiles});
+    // Get game update rules
+    update_game = bind_program("update_game",{game_size:[game_w_tiles,game_h_tiles]});
+    // Get game copy kernel    
+    copy = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles});
+    // Run game init/update
+    update_game({game_state:game_state,noise:rng_noise},game_temp);
+    copy(game_temp,game_state);
     // Set up UI and start.
     add_event_listeners();
     resizeCanvas();
     scale_to_screen();
     render();
     console.log("Loaded");
+    // Start an animation loop
+    function animate(){
+        gpurng(rng_noise,rng_temp);
+        update_game({game_state:game_state,noise:rng_noise},game_temp);
+        copy(game_temp,game_state);
+        render();
+        setTimeout(animate,50);
+    }
+    animate();
 }
+
+
 /**
  * Load tiles image from base64 string.
  * We wait until the image loads before initializing the WebGL environment.

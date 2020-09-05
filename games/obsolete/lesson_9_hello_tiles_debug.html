@@ -11,6 +11,7 @@
 - Add keyboard control: arrow keys to pan; +/- PgUp/PgDn to zoom
 - Render an image from texture using nearest-neighbor interpolation
 - Create a 2D game environment based on square tiles
+  - There are some small offset errors for large pixel sizes, fix them! 
 
 This requires defining another rendering layer that computes a tile index, which
 is then passed to the final renderer to generate the visible screen. 
@@ -56,23 +57,26 @@ window.addEventListener('load', function() {
 <div id="controls_bottom"></div>
 </div>
 
-<!--Tile shader: render 2D tiles using 8-bit ID passed as texture R channel-->
-<script id="tile_shader_parameters" type="x-shader/x-fragment">
+<!--
+The parameters.js routines simplify passing parameters to the shader. 
+Some parameters can be passed when we compile the shader (as #defines),
+and others can be passed later as sampler or uniform parameters. The function
+"compile_bind" generates the header text, with the appropriate #defines and
+parameter declarations.
+
+To render from a texture, we create a new "sampler2D" parameter called "tiles".
+-->
+<script id="basic_program_parameters" type="x-shader/x-fragment">
 sampler2D tiles;
 sampler2D tile_ids;
 vec2  game_size;
 vec2  screen_size;
 vec2  texture_size;
 vec2  tile_size;
-float tiles_across;
+int   tiles_across;
 vec3  view_transform;
 </script>
-<script id="tile_shader" type="x-shader/x-fragment">
-#define RED    vec4(1.0,0.0,0.0,0.0)
-#define GREEN  vec4(0.0,1.0,0.0,0.0)
-#define BLUE   vec4(0.0,0.0,1.0,0.0)
-#define VIOLET vec4(1.0,0.0,1.0,0.0)
-#define DEBUG  true
+<script id="basic_program" type="x-shader/x-fragment">
 void main() {
     // Transform from screen coordinates to game pixel coordinates
     vec2 q = gl_FragCoord.xy;
@@ -80,46 +84,50 @@ void main() {
     // Exit if coordinate is not inside visible game region
     gl_FragColor = vec4(0.2,0.2,0.2,0.0);
     if (p.x<0.0||p.y<0.0||p.x>screen_size.x||p.y>screen_size.y) return;
+
+
     // Get tile info: use red channel to decode a tile ID from 0-255
-    float id = 255.0-floor(texture2D(tile_ids,p/screen_size).r*255.0);
-    // Convert tile ID to tile position in texture
-    vec2 txy = vec2(mod(id,tiles_across),floor(id/tiles_across));
-    // Calculate pixel offset into the tile
-    vec2 tdelta = floor(mod(p,tile_size));
-    // Coordinates are a bit weird, fix this.
-    txy.x = tiles_across-1.0-txy.x;
+    int id = int(floor(texture2D(tile_ids,p/screen_size).r*255.0));
+    // Convert tile ID to tile position
+    ivec2 tile_xy = ivec2(id-tiles_across*(id/tiles_across),id/tiles_across);
+    // We need to calculate our offset into the tile
+    ivec2 w = ivec2(p);
+    ivec2 tile_offset = w-int(tile_size)*(w/int(tile_size));
     // This is our tile pixel lookup in pixels
-    vec2 w = txy*tile_size + tdelta;
-    // Divide by texture size to get correct coordinate
-    gl_FragColor = texture2D(tiles,w/(float(tiles_across)*tile_size));
-    if (DEBUG) {
-        // Render a 1 pixel grid at both game and screen scales
-        // Shade game pixels at the edge of each tile
-        vec2 o = floor(mod(p,tile_size));
-        if (o.x==0.0||o.y==0.0)
-            gl_FragColor = (VIOLET+gl_FragColor)*0.5;
-        if (o.x==tile_size.x-1.0||o.y==tile_size.y-1.0)
-            gl_FragColor = (BLUE+gl_FragColor)*0.5;
-        if (mod(q.x,2.0)!=mod(q.y,2.0)) {
-            // Shade screen pixels at the edge of each tile
-            // Depending on scale, sctsz can take on fractional values
-            vec2 sctsz = tile_size/view_transform.z;
-            // Start of each screen tile
-            o = floor(mod(q+view_transform.xy/view_transform.z,sctsz));
-            if (o.x==0.0||o.y==0.0) gl_FragColor = GREEN;
-            // End of each screen tile
-            o = floor(mod(q+1.0+view_transform.xy/view_transform.z,sctsz));
-            if (o.x==0.0||o.y==0.0) gl_FragColor = RED;
-        }
-        if (p.x<0.0||p.y<0.0||p.x>=screen_size.x||p.y>=screen_size.y) gl_FragColor*=0.25;
+    ivec2 u = tile_xy*int(tile_size) + tile_offset;
+    // We need to divide by texture size to get correct coordinate
+    gl_FragColor = texture2D(tiles,vec2(u)/128.0);
+    
+
+    // Carefully render a perfect 1 pixel grid
+    // This shades the game pixels at the edge of each tile
+    vec2 offset_into_tile = floor(mod(p,tile_size));
+    if (offset_into_tile.x==0.0||offset_into_tile.y==0.0)
+        gl_FragColor = vec4(1.0,1.0,1.0,0.0);
+    if (offset_into_tile.x==tile_size.x-1.0||offset_into_tile.y==tile_size.y-1.0)
+        gl_FragColor = vec4(0.0,0.0,1.0,0.0);
+
+    if (mod(q.x,2.0)!=mod(q.y,2.0)) {
+        // This shades the screen pixels at the edge of each tile
+        // Depending on scale, screen_tile_size can take on fractional values
+        vec2 screen_tile_size   = tile_size/view_transform.z;
+        vec2 screen_tile_offset = floor(mod(q+view_transform.xy/view_transform.z,screen_tile_size));
+        // Start of each screen tile
+        if (screen_tile_offset.x==0.0||screen_tile_offset.y==0.0)
+            gl_FragColor = vec4(0.0,1.0,0.0,0.0);
+        // End of each screen tile
+        screen_tile_offset = floor(mod(q+1.0+view_transform.xy/view_transform.z,screen_tile_size));
+        if (screen_tile_offset.x==0.0||screen_tile_offset.y==0.0)
+            gl_FragColor = vec4(1.0,0.0,0.0,0.0);
     }
 }
 </script>
 <script>
+
 // Configuration constants.
 // The game size is now defined in terms of tiles. 
-const game_w_tiles = 80;
-const game_h_tiles = 48;
+const game_w_tiles = 8;
+const game_h_tiles = 8;
 // We need to know shape of tiles in the tiles texture, as well as
 // how many tiles across it is
 const tile_w_px    = 8;
@@ -129,14 +137,15 @@ const tiles_across = 16;
 const game_w_px    = game_w_tiles*tile_w_px;
 const game_h_px    = game_h_tiles*tile_h_px;
 // View behavior and limits
-const max_scale    = 8;
-const min_scale    = 2;
+const max_scale    = 64;
+const min_scale    = 1;
 const key_pan      = 10;
 const key_zoom     = 1.1;
 // Global variables (mutable)
 var game_focus_x = game_w_px/2;
 var game_focus_y = game_h_px/2;
 var game_scale   = 2.0;
+
 /**
  * Render game on canvas using current canvas size, scale, and focus point. 
  */
@@ -147,20 +156,23 @@ function render() {
     var s = 1.0/game_scale;
     var x = Math.floor(game_focus_x-w/2*s);
     var y = Math.floor(game_focus_y-h/2*s);
-    tile_shader({tiles:texture,tile_ids:noise,view_transform:[x,y,s]});
+    basic_program({tiles:texture,tile_ids:noise,view_transform:[x,y,s]});
     console.log("Rendered");
 };
+
 /** 
  * Main script that will run when the website loads
  */
-function main() {
+function main()
+{
     gl = init_webgl_canvas();
     // Compile shader with new constants needed to index into the tiles texture
-    tile_shader = bind_program("tile_shader",{
+    bind_basic_program({
         game_size   :[game_w_tiles,game_h_tiles],
-        tile_size   :[tile_w_px,tile_h_px],
-        screen_size :[game_w_px,game_h_px],
-        tiles_across:tiles_across});
+        tile_size   :[tile_w_px   ,tile_h_px   ],
+        screen_size :[game_w_px   ,game_h_px   ],
+        tiles_across:tiles_across,
+    });
     // Create tiles texture
     texture = pixel_art_texture(gl,tiles);
     // Make some noise (random tile ID values)
@@ -178,6 +190,7 @@ function main() {
     render();
     console.log("Loaded");
 }
+
 /**
  * Load tiles image from base64 string.
  * We wait until the image loads before initializing the WebGL environment.

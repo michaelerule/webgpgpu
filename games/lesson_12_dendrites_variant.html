@@ -35,7 +35,9 @@ https://stackoverflow.com/questions/21540520/how-to-perform-mipmapping-in-webgl
 -->
 <head>
 <script>
-window.addEventListener('load', function() {load_textures();})
+window.addEventListener('load', function() {
+    load_textures();
+})
 </script>
 <script src="./lib/gpgpu.js"></script>
 <script src="./lib/gpurand.js"></script>
@@ -54,16 +56,15 @@ window.addEventListener('load', function() {load_textures();})
 A new shader for the game logic. This operates on a tiled grid, and uses
 color data to save game state
 -->
-<script id="game_of_life_parameters" type="x-shader/x-fragment">
+<script id="dendrites_parameters" type="x-shader/x-fragment">
 sampler2D game_state;
+sampler2D noise;
 vec2 game_size;
+int box_charset;
+int background;
 </script>
-<script id="game_of_life" type="x-shader/x-fragment">
+<script id="dendrites" type="x-shader/x-fragment">
 // Lookup positions of relevant tiles ("characters")
-#define MATURE  64
-#define NEWBORN 65
-#define DIED    80
-#define SHADES  240
 void main() {
     vec2 dx = vec2(1.0/game_size.x,0.0);
     vec2 dy = vec2(0.0,1.0/game_size.y);
@@ -78,27 +79,47 @@ void main() {
     vec4 s20 = texture2D(game_state,p+dy-dx);
     vec4 s21 = texture2D(game_state,p+dy);
     vec4 s22 = texture2D(game_state,p+dy+dx);
-    // Current cell and neighborhood cell density count
-    float cell = s11.g;
-    float near = s00.g+s01.g+s02.g+s10.g+s12.g+s20.g+s21.g+s22.g;
-    float next = (cell>0.5&&near>1.5&&near<3.5||near>2.5&&near<3.5)?1.0:0.0;
-    // Diffusing state: average neighborhood with decay; add density if live
-    float diffuse = (s01.b+s10.b+s11.b+s12.b+s21.b)*0.2;
-    diffuse = max(diffuse*0.95,next);
-    // Tile ID: 
-    int id = 
-        (cell>0.5&&next>0.5)? MATURE :
-        (cell>0.5&&next<0.5)? DIED :
-        (cell<0.5&&next>0.5)? NEWBORN :
-        SHADES + int((1.0-diffuse)*16.0)+1;
-    gl_FragColor = vec4(float(id)/256.0,next,diffuse,0.0);
+    // Cells persist
+    bool cell = s11.g==1.0;
+    // How many immediately adjacent?
+    int near = int(s01.g+s10.g+s12.g+s21.g);
+    // Total more distantly adjacent? 
+    int far = int(s00.g+s02.g+s20.g+s22.g);
+    // Get noise
+    vec4 n = texture2D(noise,p);
+    // Cells randomly added only if they would not clash
+    float next = float(cell||(near==1&&far<2&&n.g>(0.95-float(far)*0.3)));
+    if (near+far>=7&&n.b<0.05) next=0.0;
+    // Distance from network affects color
+    float distance = 0.0;
+    if (cell) distance = 1.0;
+    else {
+        distance = max(max(s01.b,s10.b),max(s12.b,s21.b))-0.1;
+    }
+    // Use box-drawing characters
+    int id = cell? box_charset+int(s21.g+s12.g*2.0+s01.g*4.0+s10.g*8.0) : 
+        near+far>0? background : background + int((1.0-distance)*14.0) - 1;
+    gl_FragColor = vec4(float(id)/255.0,next,distance,0.0);
 }
 </script>
+
+<script id="bitnoise_parameters" type="x-shader/x-fragment">
+sampler2D game_state;
+vec2 game_size;
+</script>
+<script id="bitnoise" type="x-shader/x-fragment">
+void main() {
+    vec2  p = gl_FragCoord.xy/game_size;
+    vec4 c = texture2D(game_state,p);
+    gl_FragColor = vec4(0.0,float(c.g>1.0-1.0/256.0),0.0,0.0);
+}
+</script>
+
 <script>
 // Configuration constants.
 // The game size is now defined in terms of tiles. 
-const game_w_tiles = 60;
-const game_h_tiles = 60;
+const game_w_tiles = 160;
+const game_h_tiles = 120;
 // We need to know shape of tiles in the tiles texture, as well as
 // how many tiles across it is
 const tile_w_px    = 8;
@@ -108,14 +129,15 @@ const tiles_across = 16;
 const game_w_px    = game_w_tiles*tile_w_px;
 const game_h_px    = game_h_tiles*tile_h_px;
 // View behavior and limits
-const max_scale    = 8;
-const min_scale    = 2;
+const max_scale    = 4;
+const min_scale    = 1;
 const key_pan      = 10;
 const key_zoom     = 1.1;
 // Global variables (mutable)
 var game_focus_x = game_w_px/2;
 var game_focus_y = game_h_px/2;
 var game_scale   = 2.0;
+
 /**
  * Render game on canvas using current canvas size, scale, and focus point. 
  */
@@ -132,42 +154,68 @@ function render() {
 /** 
  * Main script that will run when the website loads
  */
-function main() {
+function main()
+{
     gl = init_webgl_canvas();
+
     // Compile shader with new constants needed to index into the tiles texture
     tile_shader = get_tile_shader(gl,game_w_tiles,game_h_tiles,tile_w_px,tile_h_px,tiles_across);
-    // Get game program
-    game_kernel = bind_program("game_of_life",{game_size:[game_w_tiles,game_h_tiles],});
-    // Get copy program
-    copy = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
+
+    // Pick one of four styles at random
+    var style = 0;//Math.floor(Math.random()*4);
+    var box_charset = style*16;
+    var background = [242,254,255,249][style];
+
+    // Get game program, initializer, and copy program
+    game_kernel = bind_program("dendrites",{game_size:[game_w_tiles,game_h_tiles],
+                                            box_charset:box_charset,
+                                            background:background});
+    game_init   = bind_program("bitnoise" ,{game_size:[game_w_tiles,game_h_tiles]});
+    copy        = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
+
     // Create tiles texture
     texture = pixel_art_texture(gl,tiles);
-    // Prepare texture for game state
+
+    // Prepare texture for game and RNG state 
     options = {
         width:game_w_tiles, 
         height:game_h_tiles, 
         mag_filter:gl.NEAREST, 
-        min_filter:gl.NEAREST, 
+        min_filter:gl.LINEAR, 
         wrap:gl.CLAMP_TO_EDGE}
     game_state = newBasicFramebuffer(gl,options);
     game_temp  = newBasicFramebuffer(gl,options);
+    rng_noise  = newBasicFramebuffer(gl,options);
+    rng_temp   = newBasicFramebuffer(gl,options);
+
+    // get GPU random number generator
+    gpurng = GPUNoise(gl,{W:game_w_tiles,H:game_h_tiles});
+    randomize_framebuffer(rng_noise);
+    gpurng(rng_noise,rng_temp);
+
+    // Run initializer
     randomize_framebuffer(game_state);
-    randomize_framebuffer(game_temp);
+    game_init({game_state:game_state},game_temp);
+    copy(game_temp,game_state);
+
     // Set up UI and start.
     add_event_listeners();
     resizeCanvas();
-    scale_to_screen();
+    //scale_to_screen();
     render();
     console.log("Loaded");
-    // Start animation loop
+
+    // Start an animation loop
     function animate(){
-        game_kernel({game_state:game_state},game_temp);
+        gpurng(rng_noise,rng_temp);
+        game_kernel({game_state:game_state,noise:rng_noise},game_temp);
         copy(game_temp,game_state);
         render();
         setTimeout(animate,100);
     }
     animate();
 }
+
 
 /**
  * Load tiles image from base64 string.
