@@ -12,7 +12,7 @@
 - Render an image from texture using nearest-neighbor interpolation
 - Create a 2D game environment based on square tiles
 - Build a game of life demo using the tiles 
-- Build a squares_upsample fire demo using the tiles
+- Build a squares fire demo using the tiles
 - Implement marching squares using full-sized tiles
 
 Useful
@@ -32,9 +32,7 @@ https://stackoverflow.com/questions/21540520/how-to-perform-mipmapping-in-webgl
 -->
 <head>
 <script>
-window.addEventListener('load', function() {
-    load_textures();
-})
+window.addEventListener('load', function() {load_textures();})
 </script>
 <script src="./lib/gpgpu.js"></script>
 <script src="./lib/gpurand.js"></script>
@@ -50,14 +48,13 @@ window.addEventListener('load', function() {
 </div>
 
 <!-- Marching squares -->
-<script id="squares_upsample_parameters" type="x-shader/x-fragment">
+<script id="squares_parameters" type="x-shader/x-fragment">
 sampler2D game_state;
 vec2 game_size;
 </script>
-<script id="squares_upsample" type="x-shader/x-fragment">
+<script id="squares" type="x-shader/x-fragment">
 // Lookup positions of relevant tiles ("characters")
-//#define SQUARES 128
-#define SQUARES (128+16)
+#define SQUARES (128-16)
 void main() {
     vec2 dx = vec2(1.0/game_size.x,0.0);
     vec2 dy = vec2(0.0,1.0/game_size.y);
@@ -74,49 +71,12 @@ void main() {
     gl_FragColor = vec4(float(id)/255.0,0.0,0.0,0.0);
 }
 </script>
-
-<!-- tile shader -->
-<script id="tile_shader_parameters" type="x-shader/x-fragment">
-sampler2D tiles;
-sampler2D tile_ids;
-vec2 game_size;
-vec2 screen_size;
-vec2 texture_size;
-ivec2 tile_size;
-int tiles_across;
-vec3 view_transform;
-</script>
-<script id="tile_shader" type="x-shader/x-fragment">
-void main() {
-    // default color
-    gl_FragColor = vec4(0.2,0.2,0.2,0.0);
-    vec2 p = gl_FragCoord.xy;
-    // Transform from screen coordinates to game pixel coordinates
-    p = p*view_transform.z + view_transform.xy;
-    // Exit if coordinate is not inside visible game region
-    if (p.x<0.0||p.y<0.0||p.x>screen_size.x||p.y>screen_size.y) return;
-    // Get tile info: use red channel to decode a tile ID from 0-255
-    int id = 255-int(floor(texture2D(tile_ids,p/screen_size).r*255.0));
-    // Convert tile ID to tile position
-    ivec2 tile_xy = ivec2(id-tiles_across*(id/tiles_across),id/tiles_across);
-    // We need to calculate our offset into the tile
-    ivec2 q = ivec2(p);
-    ivec2 tile_offset = q-tile_size*(q/tile_size);
-    // Coordinates are a bit weird, fix this.
-    tile_xy.x = tiles_across-1-tile_xy.x;
-    // This is our tile pixel lookup in pixels
-    ivec2 u = tile_xy*tile_size + tile_offset;
-    // Divide by texture size to get correct coordinate
-    gl_FragColor = texture2D(tiles,vec2(u)/128.0);
-}
-</script>
-
-<script id="update_game_parameters" type="x-shader/x-fragment">
+<script id="world_parameters" type="x-shader/x-fragment">
 sampler2D game_state;
 sampler2D noise;
 vec2 game_size;
 </script>
-<script id="update_game" type="x-shader/x-fragment">
+<script id="world" type="x-shader/x-fragment">
 void main() {
     vec2 dx = vec2(1.0/game_size.x,0.0);
     vec2 dy = vec2(0.0,1.0/game_size.y);
@@ -130,25 +90,24 @@ void main() {
     vec4 s11 = texture2D(game_state,p);
     vec4 s12 = texture2D(game_state,p+dx);
     vec4 s21 = texture2D(game_state,p+dy);
-    // Flip randomly, I suppse
-    //float g = float(s.g>0.5);
-    //if (n.g<0.01) g = 1.0-g;
+    // Average neighborhood
     vec4 m = (s01+s10+s11+s12+s21)*0.2;
-    m = 0.99*m + 0.01*n;
-    m = m*1.02-0.01;
-
-    m.r = 0.1*m.r+0.9*s.r;
-    m.g = (m.r+1.0-m.b)*0.5;
+    // Noise
+    m = 0.95*m + 0.05*n;
+    // Radial dependence
+    vec2 r = (p-0.5)*2.0;
+    r.x/=1.25;
+    m = 0.99*m+0.01*(length(r)*0.8);
+    m = 0.1*m+0.9*s;
     gl_FragColor = m;
 }
 </script>
 
 <script>
-
 // Configuration constants.
 // The game size is now defined in terms of tiles. 
-const game_w_tiles = 128;
-const game_h_tiles = 128;
+const game_w_tiles = 70;
+const game_h_tiles = 43;
 // We need to know shape of tiles in the tiles texture, as well as
 // how many tiles across it is
 const tile_w_px    = 8;
@@ -158,8 +117,8 @@ const tiles_across = 16;
 const game_w_px    = game_w_tiles*tile_w_px;
 const game_h_px    = game_h_tiles*tile_h_px;
 // View behavior and limits
-const max_scale    = 8;
-const min_scale    = 1;
+const max_scale    = 4;
+const min_scale    = 2;
 const key_pan      = 10;
 const key_zoom     = 1.1;
 // Global variables (mutable)
@@ -189,26 +148,14 @@ function render() {
  */
 function main()
 {
-    gl = init_webgl_canvas();
-
+    canvas = init_webgl_canvas();
+    gl = canvas.gl;
     // Create tiles texture
     texture = pixel_art_texture(gl,tiles);
-
     // Compile shader with new constants needed to index into the tiles texture
-    // Excepts arguments twice as big as usual due to 2x upsampling from
-    // marching squares.
-    tile_shader = bind_program("tile_shader",{
-        game_size   :[game_w_tiles-1,game_h_tiles-1],
-        tile_size   :[tile_w_px     ,tile_h_px     ],
-        screen_size :[game_w_px-tile_w_px   ,game_h_px-tile_h_px   ],
-        tiles_across:tiles_across,
-    });
-
+    tile_shader = get_tile_shader(gl,game_w_tiles-1,game_h_tiles-1,tile_w_px,tile_h_px,tiles_across);
     // Marching squares double size of game in tiles
-    marching_squares = bind_program("squares_upsample",{
-        game_size:[game_w_tiles-1,game_h_tiles-1]
-    });
-    
+    marching_squares = bind_program(gl,"squares",{game_size:[game_w_tiles-1,game_h_tiles-1]});
     // Initial game state: set to random noise
     options = {
         width:game_w_tiles, 
@@ -222,7 +169,6 @@ function main()
     rng_temp   = newBasicFramebuffer(gl,options);
     randomize_framebuffer(game_state);
     randomize_framebuffer(rng_noise);
-
     // Tile storage
     options = {
         width:game_w_tiles-1, 
@@ -231,47 +177,47 @@ function main()
         min_filter:gl.LINEAR, 
         wrap:gl.CLAMP_TO_EDGE}
     tile_ids = newBasicFramebuffer(gl,options);
-    
     // Get GPU RNG kernel
-    gpurng = GPUNoise(gl,{
-        W:game_w_tiles,H:game_h_tiles
-    });
-
+    gpurng = GPUNoise(gl,{W:game_w_tiles,H:game_h_tiles});
     // Get game update rules
-    update_game = bind_program("update_game",{
-        game_size:[game_w_tiles,game_h_tiles]
-    });
-
+    world = bind_program(gl,"world",{game_size:[game_w_tiles,game_h_tiles]});
     // Get game copy kernel    
-    copy = GPUcopy(gl,{
-        W:game_w_tiles,H:game_h_tiles
-    });
-
+    copy = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles});
     // Run game init/update
-    update_game({game_state:game_state,noise:rng_noise},game_temp);
+    world({game_state:game_state,noise:rng_noise},game_temp);
     copy(game_temp,game_state);
-
     // Run marching squares
     marching_squares({game_state:game_state},tile_ids);
-
     // Set up UI and start.
     add_event_listeners();
     resizeCanvas();
     scale_to_screen();
-    render();
     console.log("Loaded");
-
-    // Start an animation loop
-    function animate(){
-        gpurng(rng_noise,rng_temp);
-        update_game({game_state:game_state,noise:rng_noise},game_temp);
-        // Run marching squares
-        marching_squares({game_state:game_state},tile_ids);
-        copy(game_temp,game_state);
-        render();
-        setTimeout(animate,500);
+    frameno=0;
+    function animate() {
+        if (frameno>115) return;
+        requestAnimationFrame(animate);
+        now = Date.now();
+        elapsed = now - then;
+        if (elapsed > fpsInterval) {
+            then = now - (elapsed % fpsInterval);
+            gl.viewport(0,0,game_w_tiles,game_h_tiles);
+            gpurng(rng_noise,rng_temp);
+            world({game_state:game_state,noise:rng_noise},game_temp);
+            marching_squares({game_state:game_state},tile_ids);
+            copy(game_temp,game_state);
+            render();
+            console.log(frameno);
+            frameno++;
+        }
     }
-    animate();
+    function startAnimating(fps) {
+        fpsInterval = 1000 / fps;
+        then = Date.now();
+        startTime = then;
+        animate();
+    }
+    startAnimating(15.0);
 }
 
 

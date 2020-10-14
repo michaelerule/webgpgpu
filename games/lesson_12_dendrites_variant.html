@@ -156,21 +156,20 @@ function render() {
  */
 function main()
 {
-    gl = init_webgl_canvas();
-
+    canvas = init_webgl_canvas();
+    gl = canvas.gl;
     // Compile shader with new constants needed to index into the tiles texture
     tile_shader = get_tile_shader(gl,game_w_tiles,game_h_tiles,tile_w_px,tile_h_px,tiles_across);
-
     // Pick one of four styles at random
     var style = 0;//Math.floor(Math.random()*4);
     var box_charset = style*16;
     var background = [242,254,255,249][style];
 
     // Get game program, initializer, and copy program
-    game_kernel = bind_program("dendrites",{game_size:[game_w_tiles,game_h_tiles],
+    game_kernel = bind_program(gl,"dendrites",{game_size:[game_w_tiles,game_h_tiles],
                                             box_charset:box_charset,
                                             background:background});
-    game_init   = bind_program("bitnoise" ,{game_size:[game_w_tiles,game_h_tiles]});
+    game_init   = bind_program(gl,"bitnoise" ,{game_size:[game_w_tiles,game_h_tiles]});
     copy        = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
 
     // Create tiles texture

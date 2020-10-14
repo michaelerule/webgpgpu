@@ -15,6 +15,9 @@ https://stackoverflow.com/questions/6375942/how-do-you-base-64-encode-a-png-imag
 https://stackoverflow.com/questions/2395765/store-images-in-javascript-object
 """
 
+from PIL import Image
+from PIL import ImageOps
+
 
 import os,sys
 
@@ -29,8 +32,15 @@ filetext = """
 base64_textures={
 """
 
-for f in files: 
-    b64encoded = base64.b64encode(open(f,"rb").read())
+for f in files:
+    if f.startswith("flipped_"):
+        continue
+    ff = "flipped_"+f 
+    im = Image.open(f)
+    im = ImageOps.flip(im)
+    im.save(ff)
+
+    b64encoded = base64.b64encode(open(ff,"rb").read())
     filetype   = f.split(".")[-1].lower()
     datastring = ("data:image/%s;base64,"%filetype) + b64encoded
     varname    = "_".join(f.split(".")[:-1]).lower()

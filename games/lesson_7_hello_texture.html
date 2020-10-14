@@ -64,7 +64,6 @@ vec3 view_transform;
 <script id="basic_program" type="x-shader/x-fragment">
 void main() {
     vec2 p = gl_FragCoord.xy;
-
     // Transform from screen coordinates to game pixel coordinates
     // Use the center of the screen as the reference point
     // We'll need to know the focus point of the game (center it),
@@ -72,15 +71,14 @@ void main() {
     // The transform is computed on the CPU and passed as parameter 
     // `view_transform`.
     p.xy = (p.xy*view_transform.z + view_transform.xy);
-
     // Exit if coordinate is not inside visible game region
     if (p.x<0.0||p.y<0.0||p.x>game_w_px||p.y>game_h_px) {
         gl_FragColor = vec4(0.2,0.2,0.2,0.0);
         return;
     }
-
     // Render pixel if it is visible
     vec2 q = vec2(p.x/game_w_px,p.y/game_h_px);
+    q.y = 1.0-q.y;
     gl_FragColor = texture2D(tiles,q);
 }
 </script>
@@ -122,8 +120,9 @@ function render() {
  */
 function main()
 {
-    gl = init_webgl_canvas();
-    bind_basic_program();
+    canvas = init_webgl_canvas();
+    gl = canvas.gl;
+    basic_program = bind_program(gl,"basic_program",{game_w_px:game_w_px,game_h_px:game_h_px});
     texture = pixel_art_texture(gl,tiles);
     add_event_listeners();
     resizeCanvas();
@@ -131,12 +130,12 @@ function main()
     console.log("Loaded");
 }
 
+/**
+ * Load tiles image from disk and prepare it as a texture.
+ * We wait until the image loads before initializing the WebGL environment.
+ * We achieve this by calling main() from the textures "onload" callback.
+ */
 function load_texture() {
-    /**
-     * Load tiles image from disk and prepare it as a texture.
-     * We wait until the image loads before initializing the WebGL environment.
-     * We achieve this by calling main() from the textures "onload" callback.
-     */
     tiles = new Image();
     tiles.crossOrigin = "anonymous";
     tiles.onload = main;
@@ -145,3 +144,5 @@ function load_texture() {
 </script>
 </body>
 </htlm>
+
+

@@ -47,6 +47,7 @@ function parse_parameters(text) {
  *      each parameter.
  */
 function get_parameters(id) {
+    console.log(id);
     if (!$(id)) {
         console.log("Could not locate program "+fragment);
         return;

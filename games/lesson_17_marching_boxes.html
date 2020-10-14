@@ -35,9 +35,7 @@ https://stackoverflow.com/questions/21540520/how-to-perform-mipmapping-in-webgl
 -->
 <head>
 <script>
-window.addEventListener('load', function() {
-    load_textures();
-})
+window.addEventListener('load', function() {load_textures();})
 </script>
 <script src="./lib/gpgpu.js"></script>
 <script src="./lib/gpurand.js"></script>
@@ -52,19 +50,14 @@ window.addEventListener('load', function() {
 <canvas id="game_canvas" style="height:100%;"></canvas>
 </div>
 
-<!--
-A new shader for the game logic. This operates on a tiled grid, and uses
-color data to save game state
--->
-<script id="marching_boxes_parameters" type="x-shader/x-fragment">
+<script id="boxes_parameters" type="x-shader/x-fragment">
 sampler2D game_state;
 sampler2D noise;
 vec2 game_size;
 </script>
-<script id="marching_boxes" type="x-shader/x-fragment">
-#define box_charset 176
-#define EXTENDED    192
-#define background  191
+<script id="boxes" type="x-shader/x-fragment">
+#define BOX         (176-48)
+#define background  (BOX+16+31)
 // Expects binary data in the green color channel
 // Lookup positions of relevant tiles ("characters")
 void main() {
@@ -97,23 +90,23 @@ void main() {
         ivec4 s02 = ivec4(texture2D(game_state,p-dy+dx));
         ivec4 s20 = ivec4(texture2D(game_state,p+dy-dx));
         ivec4 s22 = ivec4(texture2D(game_state,p+dy+dx));
-        // No clean way to do this really
+        int c;
         // Patch corners
-        if      (id== 3) {id = s22.g==1? EXTENDED+0 : box_charset + id;}
-        else if (id== 6) {id = s02.g==1? EXTENDED+1 : box_charset + id;}
-        else if (id== 9) {id = s20.g==1? EXTENDED+2 : box_charset + id;}
-        else if (id==12) {id = s00.g==1? EXTENDED+3 : box_charset + id;}
+        if      (id== 3) {if (s22.g==1) id=16;}
+        else if (id== 6) {if (s02.g==1) id=17;}
+        else if (id== 9) {if (s20.g==1) id=18;}
+        else if (id==12) {if (s00.g==1) id=19;}
         // Patch T junctions
-        else if (id== 7) {int c=s22.g+s02.g*2; id= c>0? EXTENDED+ 3+c : box_charset + id;}
-        else if (id==11) {int c=s20.g+s22.g*2; id= c>0? EXTENDED+ 6+c : box_charset + id;}
-        else if (id==13) {int c=s00.g+s20.g*2; id= c>0? EXTENDED+ 9+c : box_charset + id;}
-        else if (id==14) {int c=s02.g+s00.g*2; id= c>0? EXTENDED+12+c : box_charset + id;}
+        else if (id== 7) {c=s22.g+s02.g*2; if (c>0) id=19+c;}
+        else if (id==11) {c=s20.g+s22.g*2; if (c>0) id=22+c;}
+        else if (id==13) {c=s00.g+s20.g*2; if (c>0) id=25+c;}
+        else if (id==14) {c=s02.g+s00.g*2; if (c>0) id=28+c;}
         // Patch + junctions
         else if (id==15) {
-            int c = s20.g+s22.g*2+s02.g*4+s00.g*8;
-            id=EXTENDED+16+c;
+            c = s20.g+s22.g*2+s02.g*4+s00.g*8;
+            id = (c>0)?31+c:15;
         }
-        else id += box_charset;
+        id += BOX;
     }
     gl_FragColor = vec4(float(id)/255.0,next,0.0,0.0);
 }
@@ -172,14 +165,13 @@ function render() {
  */
 function main()
 {
-    gl = init_webgl_canvas();
-
+    canvas = init_webgl_canvas();
+    gl = canvas.gl;
     // Compile shader with new constants needed to index into the tiles texture
     tile_shader = get_tile_shader(gl,game_w_tiles,game_h_tiles,tile_w_px,tile_h_px,tiles_across);
-
     // Get game program, initializer, and copy program
-    game_kernel = bind_program("marching_boxes",{game_size:[game_w_tiles,game_h_tiles]});
-    game_init   = bind_program("bitnoise" ,{game_size:[game_w_tiles,game_h_tiles]});
+    game_kernel = bind_program(gl,"boxes",{game_size:[game_w_tiles,game_h_tiles]});
+    game_init   = bind_program(gl,"bitnoise" ,{game_size:[game_w_tiles,game_h_tiles]});
     copy        = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
 
     // Create tiles texture

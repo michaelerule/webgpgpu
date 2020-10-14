@@ -156,16 +156,14 @@ function render() {
  */
 function main()
 {
-    gl = init_webgl_canvas();
-
+    canvas = init_webgl_canvas();
+    gl = canvas.gl;
     // Compile shader with new constants needed to index into the tiles texture
     tile_shader = get_tile_shader(gl,game_w_tiles,game_h_tiles,tile_w_px,tile_h_px,tiles_across);
-
     // Get game program, initializer, and copy program
-    game_kernel = bind_program("forest",{game_size:[game_w_tiles,game_h_tiles]});
-    game_init   = bind_program("bitnoise" ,{game_size:[game_w_tiles,game_h_tiles]});
+    game_kernel = bind_program(gl,"forest",{game_size:[game_w_tiles,game_h_tiles]});
+    game_init   = bind_program(gl,"bitnoise" ,{game_size:[game_w_tiles,game_h_tiles]});
     copy        = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
-
     // Create tiles texture
     texture = pixel_art_texture(gl,tiles);
 

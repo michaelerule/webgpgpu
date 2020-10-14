@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8"/>
+<!--
+- Fill the screen with the game environment. No scrolling
+- Top portion of screen is game panel, bottom region console
+- Set up a basic web GL canvas environment that we'll use to draw the game
+- Move setup code into a library ("gpgpu")
+- Add bounded rendering region, with view scale and coordinates
+- Add mouse control: drag to pan, scroll wheel to zoom in/out
+- Add keyboard control: arrow keys to pan; +/- PgUp/PgDn to zoom
+- Render an image from texture using nearest-neighbor interpolation
+- Create a 2D game environment based on square tiles
+- Build a game of life demo using the tiles 
+
+Different ways to get input into textures
+
+- (1) Pass input as a shader argument (could be wasteful if all pixels need to handle input)
+- (2) Copy data to CPU, edit, and copt back to GPU (how fast are memory copies?)
+- (3) Some other way to directly edit the contant on the GPU? 
+
+Useful
+https://webgl2fundamentals.org/webgl/lessons/webgl-anti-patterns.html
+https://stackoverflow.com/questions/13870677/resize-viewport-canvas-according-to-browser-window-size
+https://github.com/michaelerule/webgpgpu
+https://stackoverflow.com/a/7732968/900749
+https://www.w3schools.com/js/js_htmldom_events.asp
+https://javascript.info/introduction-browser-events
+https://developer.mozilla.org/en-US/docs/Web/Events
+https://stackoverflow.com/a/11183302/900749
+https://stackoverflow.com/a/11183333/900749
+https://www.javascripttutorial.net/javascript-dom/javascript-keyboard-events/
+https://github.com/michaelerule/webgpgpu/blob/master/examples/Example_15_load_image.html
+https://webglfundamentals.org/webgl/lessons/webgl-cors-permission.html
+https://stackoverflow.com/questions/21540520/how-to-perform-mipmapping-in-webgl444https://stackoverflow.com/questions/6171932/webgl-reading-pixel-data-from-render-buffer
+https://dannywoodz.wordpress.com/2015/10/14/webgl-from-scratch-updating-textures/
+https://stackoverflow.com/questions/13626606/read-pixels-from-a-webgl-textures
+https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/readPixels
+-->
+<head>
+<script>
+window.addEventListener('load', function() {load_textures();})
+</script>
+<script src="./lib/gpgpu.js"></script>
+<script src="./lib/gpurand.js"></script>
+<script src="./lib/parameters.js"></script>
+<script src="./user_event_handlers.js"></script>
+<script src="./webgl_game_initialization_helpers.js"></script>
+<script src="./base64_encoded_textures.js"></script>
+<link rel="stylesheet" type="text/css" href="lessons.css">
+</head>
+<body>
+<div id="outer_container">
+<canvas id="game_canvas" style="height:100%;"></canvas>
+</div>
+
+<!-- Toggles a single pixel (wasteful?) -->
+<script id="toggle_parameters" type="x-shader/x-fragment">
+sampler2D game_state;
+vec2 game_size;
+vec2 click; 
+</script>
+<script id="toggle" type="x-shader/x-fragment">
+// Lookup positions of relevant tiles ("characters")
+void main() {
+    vec2  q  = gl_FragCoord.xy;
+    vec2  p  = q/game_size;
+    vec4 s11 = texture2D(game_state,p);
+    s11 = floor(s11+0.5);
+    gl_FragColor = floor(q.x)==floor(click.x)&&floor(q.y)==floor(click.y)? 1.0-s11 : s11;
+    gl_FragColor.r = gl_FragColor.g>0.5? 0.0 : 16.0/256.0;
+}
+</script>
+
+<!-- Marching squares + box drawing shader -->
+<script id="boxes_parameters" type="x-shader/x-fragment">
+sampler2D game_state;
+vec2 game_size;
+</script>
+<script id="boxes" type="x-shader/x-fragment">
+#define BOX         (176-48)
+#define EXTENDED    (BOX+16)
+#define background  (EXTENDED+31)
+// Expects binary data in the green color channel
+// Lookup positions of relevant tiles ("characters")
+void main() {
+    vec2 dx = vec2(1.0/game_size.x,0.0);
+    vec2 dy = vec2(0.0,1.0/game_size.y);
+    vec2  p = gl_FragCoord.xy/game_size;
+    // Get neighborhood
+    ivec4 s01 = ivec4(texture2D(game_state,p-dy)+0.5);
+    ivec4 s10 = ivec4(texture2D(game_state,p-dx)+0.5);
+    ivec4 s11 = ivec4(texture2D(game_state,p)+0.5);
+    ivec4 s12 = ivec4(texture2D(game_state,p+dx)+0.5);
+    ivec4 s21 = ivec4(texture2D(game_state,p+dy)+0.5);
+    int cell = s11.g;
+    int near = s01.g+s10.g+s12.g+s21.g;
+    int id = background;
+    if (s11.g==1) {
+        id = s21.g+s12.g*2+s01.g*4+s10.g*8;
+        ivec4 s00 = ivec4(texture2D(game_state,p-dy-dx)+0.5);
+        ivec4 s02 = ivec4(texture2D(game_state,p-dy+dx)+0.5);
+        ivec4 s20 = ivec4(texture2D(game_state,p+dy-dx)+0.5);
+        ivec4 s22 = ivec4(texture2D(game_state,p+dy+dx)+0.5);
+        int c;
+        if      (id== 3) {if (s22.g==1) id=16;}
+        else if (id== 6) {if (s02.g==1) id=17;}
+        else if (id== 9) {if (s20.g==1) id=18;}
+        else if (id==12) {if (s00.g==1) id=19;}
+        else if (id== 7) {c=s22.g+s02.g*2; if (c>0) id=19+c;}
+        else if (id==11) {c=s20.g+s22.g*2; if (c>0) id=22+c;}
+        else if (id==13) {c=s00.g+s20.g*2; if (c>0) id=25+c;}
+        else if (id==14) {c=s02.g+s00.g*2; if (c>0) id=28+c;}
+        else if (id==15) {c=s20.g+s22.g*2+s02.g*4+s00.g*8;id=(c>0)?31+c:15;}
+        id += BOX;
+    }
+    gl_FragColor = vec4(float(id)/255.0,s11.g,0.0,0.0);
+}
+</script>
+
+<script>
+// Configuration constants.
+// The game size is now defined in terms of tiles. 
+const game_w_tiles = 16;
+const game_h_tiles = 16;
+// We need to know shape of tiles in the tiles texture, and # tiles across
+const tile_w_px    = 8;
+const tile_h_px    = 8;
+const tiles_across = 16;
+// Calculated game shape in pixels
+const game_w_px    = game_w_tiles*tile_w_px;
+const game_h_px    = game_h_tiles*tile_h_px;
+// View behavior and limits
+const max_scale    = 4;
+const min_scale    = 1;
+const key_pan      = 10;
+const key_zoom     = 1.1;
+// Global variables (mutable)
+var game_focus_x = game_w_px/2;
+var game_focus_y = game_h_px/2;
+var game_scale   = 2.0;
+
+select_p = [-1,-1];
+
+/**
+ * Render game on canvas using current canvas size, scale, and focus point. 
+ */
+function render() {
+    var w = gl.canvas.width;
+    var h = gl.canvas.height;
+    gl.viewport(0,0,w,h);
+    var s = 1.0/game_scale;
+    var x = Math.floor(game_focus_x-w/2*s);
+    var y = Math.floor(game_focus_y-h/2*s);
+    tile_shader({
+        tiles:texture,
+        tile_ids:tile_ids,
+        view_transform:[x,y,s],
+        select:select_p
+    });
+};
+
+/** 
+ * Main script that will run when the website loads
+ */
+function main()
+{
+    canvas        = init_webgl_canvas();
+    gl            = canvas.gl;
+    tile_shader   = get_tile_shader(gl,game_w_tiles,game_h_tiles,tile_w_px,tile_h_px,tiles_across);
+    toggle_kernel = bind_program(gl,"toggle",{game_size:[game_w_tiles,game_h_tiles]});
+    boxes_kernel  = bind_program(gl,"boxes",{game_size:[game_w_tiles,game_h_tiles]});
+    copy          = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles});
+    
+    // Create tiles texture
+    texture = pixel_art_texture(gl,tiles);
+
+    // Prepare texture for game state
+    options = {
+        width:game_w_tiles, 
+        height:game_h_tiles, 
+        mag_filter:gl.NEAREST, 
+        min_filter:gl.NEAREST, 
+        wrap:gl.CLAMP_TO_EDGE}
+    game_state = newBasicFramebuffer(gl,options);
+    game_temp  = newBasicFramebuffer(gl,options);
+    tile_ids   = newBasicFramebuffer(gl,options);
+    randomize_framebuffer(game_state);
+
+    // One iteration of marching boxes tile shader
+    toggle_kernel({game_state:game_state,click:[-1,-1]},game_temp);
+    copy(game_temp,game_state);
+    //copy(game_temp,tile_ids);
+    boxes_kernel({game_state:game_state},tile_ids);
+    render();
+
+    // Set up UI and start.
+    add_event_listeners();
+    resizeCanvas();
+    scale_to_screen();
+    render();
+    console.log("Loaded");
+
+    /**
+     * Detect mouse clicks. At the moment, just prints coordinate in console.
+     * @param e {MouseEvent} mouse event object
+     */
+    canvas.onclick = function(e) {
+        var p = mouse_to_game_point(e);
+        var x = Math.floor(p.x/tile_w_px);
+        var y = Math.floor(p.y/tile_h_px);
+
+        //Get pixel value   
+        var read  = new Uint8Array(4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, game_state);
+        gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, read);
+
+        //Change green pixel value
+        read[1] = 255-read[1];
+
+        //Set pixel value
+        gl.bindTexture  (gl.TEXTURE_2D, game_state.texture);
+        gl.texSubImage2D(gl.TEXTURE_2D,0,x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,read);
+
+        //toggle_kernel({game_state:game_state,click:[x,y]},game_temp);
+        //copy(game_temp,game_state);
+        boxes_kernel({game_state:game_state},tile_ids);
+        render();
+    };
+
+    canvas.addEventListener("mousemove", function(e) {
+        var p = mouse_to_game_point(e);
+        var button_state = e.buttons===undefined?e.which:e.buttons;
+        var isdown = !!(button_state&1);
+        if (isdown) select_p=[-1,-1]
+        else select_p=[Math.floor(p.x/tile_w_px),Math.floor(p.y/tile_h_px)];
+        render();
+    });
+}
+
+
+/**
+ * Load tiles image from base64 string.
+ * We wait until the image loads before initializing the WebGL environment.
+ * We achieve this by calling main() from the textures "onload" callback.
+ */
+function load_textures() {
+    tiles = new Image();
+    tiles.crossOrigin = "anonymous";
+    tiles.onload = main;
+    tiles.src = base64_textures.tiles;
+}
+</script>
+</body>
+</htlm>

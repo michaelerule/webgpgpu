@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8"/>
+<!--
+- Fill the screen with the game environment. No scrolling
+- Top portion of screen is game panel, bottom region console
+- Set up a basic web GL canvas environment that we"ll use to draw the game
+- Move setup code into a library ("gpgpu")
+- Add bounded rendering region, with view scale and coordinates
+- Add mouse control: drag to pan, scroll wheel to zoom in/out
+- Add keyboard control: arrow keys to pan; +/- PgUp/PgDn to zoom
+- Render an image from texture using nearest-neighbor interpolation
+- Create a 2D game environment based on square tiles
+- Build a game of life demo using the tiles 
+
+- Slightly fancier drawing example
+
+
+Composit multiple fields? This would require modifying tile shader to support 
+layers. And colors. Probably not a bad thing to add. I think the easiest way to 
+do this is to call the tile shader multiple times and then manually composit. 
+Pretty inefficient though. Still, no need for premature optimiziation.
+
+Main thing to add to this will be some sort of button panel. This would be 
+another WebGL canvas I suppose? 
+
+Useful
+https://webgl2fundamentals.org/webgl/lessons/webgl-anti-patterns.html
+https://stackoverflow.com/questions/13870677/resize-viewport-canvas-according-to-browser-window-size
+https://github.com/michaelerule/webgpgpu
+https://stackoverflow.com/a/7732968/900749
+https://www.w3schools.com/js/js_htmldom_events.asp
+https://javascript.info/introduction-browser-events
+https://developer.mozilla.org/en-US/docs/Web/Events
+https://stackoverflow.com/a/11183302/900749
+https://stackoverflow.com/a/11183333/900749
+https://www.javascripttutorial.net/javascript-dom/javascript-keyboard-events/
+https://github.com/michaelerule/webgpgpu/blob/master/examples/Example_15_load_image.html
+https://webglfundamentals.org/webgl/lessons/webgl-cors-permission.html
+https://stackoverflow.com/questions/21540520/how-to-perform-mipmapping-in-webgl444https://stackoverflow.com/questions/6171932/webgl-reading-pixel-data-from-render-buffer
+https://dannywoodz.wordpress.com/2015/10/14/webgl-from-scratch-updating-textures/
+https://stackoverflow.com/questions/13626606/read-pixels-from-a-webgl-textures
+https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext/readPixels
+
+Packing pixels:
+https://stackoverflow.com/questions/22895237/hexadecimal-to-rgb-values-in-webgl-shader
+-->
+<head>
+<script>
+window.addEventListener("load", function() {load_textures();})
+</script>
+<script src="./lib/gpgpu.js"></script>
+<script src="./lib/gpurand.js"></script>
+<script src="./lib/parameters.js"></script>
+<script src="./webgl_game_initialization_helpers.js"></script>
+<script src="./base64_encoded_textures.js"></script>
+<link rel="stylesheet" type="text/css" href="lessons.css">
+</head>
+<body>
+<div id="outer_container">
+<canvas id="game_canvas"></canvas>
+<canvas id="controls_canvas"></canvas>
+</div>
+
+<script id="boxes_parameters" type="x-shader/x-fragment">
+sampler2D game_state;
+vec2 game_size;
+</script>
+<script id="boxes" type="x-shader/x-fragment">
+#define BOX    (176-48)
+#define EMPTY  (240)
+#define NEIGHBOR(q) ivec4(equal(texture2D(game_state,q),s))*t
+void main() {
+    vec2 dx = vec2(1.0/game_size.x,0.0);
+    vec2 dy = vec2(0.0,1.0/game_size.y);
+    vec2  p = gl_FragCoord.xy/game_size;
+    vec4  s = texture2D(game_state,p);
+    ivec4 tid = ivec4(s*255.0);
+    ivec4 t   = ivec4(notEqual(tid,ivec4(EMPTY)));
+    ivec4 s11 = t;
+    ivec4 s01 = NEIGHBOR(p-dy);
+    ivec4 s10 = NEIGHBOR(p-dx);
+    ivec4 s12 = NEIGHBOR(p+dx);
+    ivec4 s21 = NEIGHBOR(p+dy);
+    ivec4 s00 = NEIGHBOR(p-dy-dx);
+    ivec4 s02 = NEIGHBOR(p-dy+dx);
+    ivec4 s20 = NEIGHBOR(p+dy-dx);
+    ivec4 s22 = NEIGHBOR(p+dy+dx);
+    ivec4 id  = s21+s12*2+s01*4+s10*8;
+    //id += ivec4(equal(id,ivec4( 3)))*ivec4(equal(s22,ivec4(1)))*(16-id);
+    //id += ivec4(equal(id,ivec4( 6)))*ivec4(equal(s02,ivec4(1)))*(17-id);
+    //id += ivec4(equal(id,ivec4( 9)))*ivec4(equal(s20,ivec4(1)))*(18-id);
+    //id += ivec4(equal(id,ivec4(12)))*ivec4(equal(s00,ivec4(1)))*(19-id);
+    //ivec4 c;
+    //c = s22+s02*2;
+    //id += ivec4(equal(id,ivec4( 7)))*ivec4(greaterThan(c,ivec4(0)))*(19+c-id);
+    //id += ivec4(equal(id,ivec4( 7)))*ivec4(greaterThan(c,ivec4(0)))*(19+c-id);
+    //c = s20+s22*2;
+    //id += ivec4(equal(id,ivec4(11)))*ivec4(greaterThan(c,ivec4(0)))*(22+c-id);
+    //c = s00+s20*2;
+    //id += ivec4(equal(id,ivec4(13)))*ivec4(greaterThan(c,ivec4(0)))*(25+c-id);
+    //c = s02+s00*2;
+    //id += ivec4(equal(id,ivec4(14)))*ivec4(greaterThan(c,ivec4(0)))*(28+c-id);
+
+    int c;
+    
+    if      (id.r== 3) {if (s22.r==1) id.r=16;}
+    else if (id.r== 6) {if (s02.r==1) id.r=17;}
+    else if (id.r== 9) {if (s20.r==1) id.r=18;}
+    else if (id.r==12) {if (s00.r==1) id.r=19;}
+    else if (id.r== 7) {c=s22.r+s02.r*2; if (c>0) id.r=19+c;}
+    else if (id.r==11) {c=s20.r+s22.r*2; if (c>0) id.r=22+c;}
+    else if (id.r==13) {c=s00.r+s20.r*2; if (c>0) id.r=25+c;}
+    else if (id.r==14) {c=s02.r+s00.r*2; if (c>0) id.r=28+c;}
+    else if (id.r==15) {c=s20.r+s22.r*2+s02.r*4+s00.r*8; id.r=(c>0)?31+c:15;}
+    
+    if      (id.g== 3) {if (s22.g==1) id.g=16;}
+    else if (id.g== 6) {if (s02.g==1) id.g=17;}
+    else if (id.g== 9) {if (s20.g==1) id.g=18;}
+    else if (id.g==12) {if (s00.g==1) id.g=19;}
+    else if (id.g== 7) {c=s22.g+s02.g*2; if (c>0) id.g=19+c;}
+    else if (id.g==11) {c=s20.g+s22.g*2; if (c>0) id.g=22+c;}
+    else if (id.g==13) {c=s00.g+s20.g*2; if (c>0) id.g=25+c;}
+    else if (id.g==14) {c=s02.g+s00.g*2; if (c>0) id.g=28+c;}
+    else if (id.g==15) {c=s20.g+s22.g*2+s02.g*4+s00.g*8; id.g=(c>0)?31+c:15;}
+    
+    if      (id.b== 3) {if (s22.b==1) id.b=16;}
+    else if (id.b== 6) {if (s02.b==1) id.b=17;}
+    else if (id.b== 9) {if (s20.b==1) id.b=18;}
+    else if (id.b==12) {if (s00.b==1) id.b=19;}
+    else if (id.b== 7) {c=s22.b+s02.b*2; if (c>0) id.b=19+c;}
+    else if (id.b==11) {c=s20.b+s22.b*2; if (c>0) id.b=22+c;}
+    else if (id.b==13) {c=s00.b+s20.b*2; if (c>0) id.b=25+c;}
+    else if (id.b==14) {c=s02.b+s00.b*2; if (c>0) id.b=28+c;}
+    else if (id.b==15) {c=s20.b+s22.b*2+s02.b*4+s00.b*8; id.b=(c>0)?31+c:15;}
+    
+    if      (id.a== 3) {if (s22.a==1) id.a=16;}
+    else if (id.a== 6) {if (s02.a==1) id.a=17;}
+    else if (id.a== 9) {if (s20.a==1) id.a=18;}
+    else if (id.a==12) {if (s00.a==1) id.a=19;}
+    else if (id.a== 7) {c=s22.a+s02.a*2; if (c>0) id.a=19+c;}
+    else if (id.a==11) {c=s20.a+s22.a*2; if (c>0) id.a=22+c;}
+    else if (id.a==13) {c=s00.a+s20.a*2; if (c>0) id.a=25+c;}
+    else if (id.a==14) {c=s02.a+s00.a*2; if (c>0) id.a=28+c;}
+    else if (id.a==15) {c=s20.a+s22.a*2+s02.a*4+s00.a*8; id.a=(c>0)?31+c:15;}
+    
+    id  = (id+BOX)*t+(1-t)*ivec4(EMPTY);
+    gl_FragColor = vec4(id)/255.0;
+}
+</script>
+
+<!--
+Extend tile shader to handle layers. 
+The R,G,B and A channels can each pass a tile ID
+Tiles are rendered atop one another in order.
+Black is interpreted as transparent.
+-->
+<script id="tile_layers_parameters" type="x-shader/x-fragment">
+sampler2D tiles;
+sampler2D tile_ids;
+vec2  game_size;
+vec2  screen_size;
+vec2  texture_size;
+vec2  tile_size;
+vec2  select;
+float tiles_across;
+vec3  view_transform;
+</script>
+<script id="tile_layers" type="x-shader/x-fragment">
+void main() {
+    // Get position
+    vec2 p = gl_FragCoord.xy*view_transform.z + view_transform.xy;
+    if (p.x<0.0||p.y<0.0||p.x>screen_size.x||p.y>screen_size.y) return;
+    
+    // Round to nearest game tile and get tile IDs
+    vec2 p2  = (floor(p/tile_size)+0.5)/(game_size);
+    vec4 ids = 255.0-floor(texture2D(tile_ids,p2)*255.0);
+
+    // Compute x and y positions of tiles in texture, and offset into tile
+    vec4 tx = (tiles_across-1.0)-mod(ids,tiles_across);
+    vec4 ty = floor(ids/tiles_across);
+    vec2 td = floor(mod(p,tile_size));
+
+    // Composit layers. Red first. Then g,b,a (but black is transparent)
+    vec2 u;
+    vec4 c,d=vec4(0.7);
+    u = vec2(tx.r,ty.r)*tile_size;
+    c = texture2D(tiles,(u+td)/(float(tiles_across)*tile_size));
+    //c.a = (c.r+c.g+c.b)/3.0;
+    d.rgb = d.rgb*(1.0-c.a) + c.rrr*vec3(0.5,0.4,0.4)*c.a;
+    u = vec2(tx.g,ty.g)*tile_size;
+    c = texture2D(tiles,(u+td)/(float(tiles_across)*tile_size));
+    //c.a = (c.r+c.g+c.b)/3.0;
+    d.rgb = d.rgb*(1.0-c.a) + vec3(c.r*0.5,c.g*0.5,0.0)*c.a;
+    u = vec2(tx.b,ty.b)*tile_size;
+    c = texture2D(tiles,(u+td)/(float(tiles_across)*tile_size));
+    //c.a = (c.r+c.g+c.b)/3.0;
+    d.rgb = d.rgb*(1.0-c.a) + vec3(0.0,c.g*0.6,0.0)*c.a;
+    u = vec2(tx.a,ty.a)*tile_size;
+    c = texture2D(tiles,(u+td)/(float(tiles_across)*tile_size));
+    //c.a = (c.r+c.g+c.b)/3.0;
+    d.rgb = d.rgb*(1.0-c.a) + vec3(0.0,0.0,c.b)*c.a;
+    gl_FragColor = d;
+
+    // Invert result if this is the selected tile
+    vec2 r = floor(p/tile_size);
+    if (r.x==floor(select.x)&&r.y==floor(select.y)) gl_FragColor=1.0-gl_FragColor;
+}
+</script>
+
+
+<script>
+// Configuration constants.
+// The game size is now defined in terms of tiles. 
+const game_w_tiles = 64;
+const game_h_tiles = 64;
+// We need to know shape of tiles in the tiles texture, and # tiles across
+const tile_w       = 8;
+const tile_h       = 8;
+const tiles_across = 16;
+// Calculated game shape in pixels
+const game_w_px    = game_w_tiles*tile_w;
+const game_h_px    = game_h_tiles*tile_h;
+// View behavior and limits
+const max_scale    = 8;
+const min_scale    = 1;
+const key_pan      = 10;
+const key_zoom     = 1.1;
+
+// Named tiles
+const SELECT = 74;
+const DELETE = 73;
+const EMPTY = 240;
+const BOX0  =   0;
+const BOX1  =  16;
+const BOX2  =  32;
+const BOX3  =  48;
+const BOX4  = 128;
+const BOX5  = 176;
+const DOWN  = 111;
+const UP    = 110;
+const LEFT  = 108;
+const RIGHT = 109;
+const IN    = 107;
+const OUT   = 106; 
+
+var game;
+var controls;
+
+var most_recent_mouse_event = null;
+window.addEventListener("mousemove",(e)=>{
+    most_recent_mouse_event = e;
+})
+
+/**
+ * Convert mouse event to game coordinates.
+ * @param e {MouseEvent} mouse event object
+ */
+function mouse_to_game_point(game,e) {
+    var rect = game.canvas.getBoundingClientRect();
+    var r = window.devicePixelRatio;
+    return {x:game.focus_x+(e.clientX-rect.left-game.canvas.clientWidth /2)/game.scale*r,
+            y:game.focus_y-(e.clientY-rect.top -game.canvas.clientHeight/2)/game.scale*r};
+}
+
+function get_layered_shader(gl,game_w_tiles,game_h_tiles,tile_w_px,tile_h_px,tiles_across,debug) {
+    var game_w_px = game_w_tiles*tile_w_px;
+    var game_h_px = game_h_tiles*tile_h_px;
+    var params = {
+        game_size   :[game_w_tiles,game_h_tiles],
+        tile_size   :[tile_w_px   ,tile_h_px   ],
+        screen_size :[game_w_px   ,game_h_px   ],
+        tiles_across:tiles_across};
+    return bind_program(gl,"tile_layers",params);
+}
+
+function init_tiled_canvas(name,w,h) {
+    var c = {w:w,h:h};
+    c.canvas  = init_webgl_canvas(name);
+    c.gl      = c.canvas.gl;
+    c.wpx     = c.w*tile_w;
+    c.hpx     = c.h*tile_h;
+    c.texels  = pixel_art_texture(c.gl,tiles);
+    c.tiles   = pixel_art_buffer(c.gl,c.w,c.h);
+    c.shader  = get_layered_shader(c.gl,c.w,c.h,tile_w,tile_h,tiles_across,false);
+    c.select  = [-1,-1];
+    c.focus_x = c.wpx/2;
+    c.focus_y = c.hpx/2;
+    c.scale   = 2.0;
+    return c;
+}
+
+
+function init_controls() {
+    var tw = 12;
+    var th = 5;
+    var controls = init_tiled_canvas("controls_canvas",tw,th);
+    controls.shader  = get_tile_shader(controls.gl,controls.w,controls.h,tile_w,tile_h,tiles_across,false);
+    var w = controls.gl.canvas.width;
+    var h = controls.gl.canvas.height;
+    controls.scale = (Math.min(w/controls.wpx,h/controls.hpx))
+    controls.focus_x = controls.wpx/2;
+    controls.focus_h = controls.hpx/2;
+    controls.render  = ()=>{
+        var w = controls.gl.canvas.width;
+        var h = controls.gl.canvas.height;
+        controls.gl.viewport(0,0,w,h);
+        var s = 1.0/controls.scale;
+        var x = Math.floor(controls.focus_x-w/2*s);
+        var y = Math.floor(controls.focus_y-h/2*s);
+        controls.shader({
+            tiles:controls.texels,
+            tile_ids:controls.tiles,
+            view_transform:[x,y,s],
+            select:controls.select
+        });
+    }
+
+    controls.resize = (e)=>{
+        c = controls.canvas;
+        var w = Math.round(c.clientWidth *window.devicePixelRatio);
+        var h = Math.round(c.clientHeight*window.devicePixelRatio);
+        if (c.width!=w||c.height!=h) {
+            c.width =w; 
+            c.height=h;
+            controls.scale = Math.min(w/controls.wpx,h/controls.hpx);
+            controls.focus_x = controls.wpx/2;
+            controls.focus_h = controls.hpx/2;
+            controls.render();
+        }
+    };
+    window.addEventListener("resize",controls.resize);
+
+    var icons = new Uint8Array(controls.w*controls.h);
+    for (var i=0; i<controls.w*controls.h; i++) icons[i]=EMPTY;
+    controls.buttons = [];
+    var new_button=(x,y,t,f)=>{
+        icons[y*controls.w+x]=t;
+        controls.buttons[t]={press:f,x:x,y:y,t:t};
+    };
+    new_button(0,0,EMPTY,()=>{console.log("Nothing here!")});
+    var by = Math.floor((th-3)/2);
+    new_button(1,by+2,SELECT,()=>{game.set_tool(SELECT);})
+    new_button(1,by  ,DELETE,()=>{game.set_tool(DELETE);})
+    new_button(3,by  ,BOX0  ,()=>{game.set_tool(BOX0);  })
+    new_button(3,by+2,BOX1  ,()=>{game.set_tool(BOX1);  })
+    new_button(5,by  ,BOX2  ,()=>{game.set_tool(BOX2);  })
+    new_button(5,by+2,BOX3  ,()=>{game.set_tool(BOX3);  })
+    // Arrow pad
+    var ay = Math.floor(th/2);
+    new_button(tw-3,ay-1,DOWN ,()=>{game.down()   })
+    new_button(tw-3,ay+1,UP   ,()=>{game.up()     })
+    new_button(tw-4,ay  ,LEFT ,()=>{game.left()   })
+    new_button(tw-2,ay  ,RIGHT,()=>{game.right()  })
+    new_button(tw-4,ay+1,IN   ,()=>{game.zoomin() })
+    new_button(tw-2,ay+1,OUT  ,()=>{game.zoomout()})
+    // Generate buttons as a tiled environment
+    controls.icons = icons
+    var data  = new Uint8Array(controls.w*controls.h*4);
+    for (var i=0; i<controls.w*controls.h*4; i++) data[i] = EMPTY;
+    for (var i=0; i<controls.w*controls.h; i++) data[i*4] = icons[i];
+    var gl = controls.gl;
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false)
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false)
+    gl.bindTexture  (gl.TEXTURE_2D,controls.tiles.texture);
+    gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,controls.w,controls.h,gl.RGBA,gl.UNSIGNED_BYTE,data);
+
+    controls.canvas.onclick = function(e) {
+        var p = mouse_to_game_point(controls,e);
+        var q = {x:Math.floor(p.x/tile_w),y:Math.floor(p.y/tile_h)};
+        console.log("Controls click",p,q);
+        controls.render();
+        if (q.x>=0&&q.x<controls.w&&q.y>=0&&q.y<controls.h) {
+            var tile   = icons[q.x+controls.w*q.y];
+            var button = controls.buttons[tile];
+            if (button) button.press();
+        }
+    };
+
+    // TODO: render should have been defined before this happens
+    controls.noselect=(e)=>{
+        q = controls.buttons[game.tool];
+        controls.select=[q.x,q.y];
+        controls.render();
+        console.log("hi");
+    }
+    controls.update_mouse_highlight=(e)=>{
+        var p = mouse_to_game_point(controls,e);
+        var button_state = e.buttons===undefined?e.which:e.buttons;
+        var isdown = !!(button_state&1);
+        if (isdown) controls.select=[-1,-1]
+        else {
+            var q={x:Math.floor(p.x/tile_w),y:Math.floor(p.y/tile_h)};
+            if (q.x>=0&&q.y>=0&&q.x<controls.w&&q.y<controls.h)
+                controls.select=[q.x,q.y];
+            else controls.noselect();
+        }
+        controls.render();
+    };
+    controls.canvas.addEventListener("mousemove",controls.update_mouse_highlight);
+    controls.canvas.addEventListener("mousedown",controls.update_mouse_highlight);
+    controls.canvas.addEventListener("mouseup"  ,controls.update_mouse_highlight);
+    window.addEventListener("keyup",(e)=>{
+        controls.update_mouse_highlight(most_recent_mouse_event)
+    });
+
+    controls.canvas.addEventListener("mouseleave",controls.noselect);
+    controls.canvas.addEventListener("mouseout"  ,controls.noselect);
+
+    return controls;
+}
+
+function init_game() {
+    var game = init_tiled_canvas("game_canvas",game_w_tiles,game_h_tiles);
+
+    game.render = ()=>{
+        var w = game.canvas.width;
+        var h = game.canvas.height;
+        game.gl.viewport(0,0,w,h);
+        var s = 1.0/game.scale;
+        var x = Math.floor(game.focus_x-w/2*s);
+        var y = Math.floor(game.focus_y-h/2*s);
+        game.shader({
+            tiles:game.texels,
+            tile_ids:game.tiles,
+            view_transform:[x,y,s],
+            select:game.select
+        });
+    };
+
+    // Kernels and framebuffers
+    game.boxes  = bind_program(game.gl,"boxes" ,{game_size:[game.w,game.h]});
+    game.copy   = GPUcopy(game.gl,{W:game.w,H:game.h})
+    game.state  = pixel_art_buffer(game.gl);
+    game.temp   = pixel_art_buffer(game.gl);
+
+    // Initialize memory. We'll need to maintain a local "texture shadow"
+    // For the height map we'll also keep that CPU-side
+    game.height = new Uint8Array(game.w*game.h);
+    for (var i=0; i<game.w*game.h; i++) game.height[i]=Math.floor(Math.random()*5);
+    function height_to_map(h) { 
+        h = Math.max(0,Math.min(4,Math.floor(h)));
+        switch (h) {
+            case 0: return [BOX0 ,BOX0 ,BOX0 ,BOX0 ];
+            case 1: return [BOX0 ,BOX0 ,BOX0 ,EMPTY];
+            case 2: return [BOX0 ,BOX0 ,EMPTY,EMPTY];
+            case 3: return [BOX0 ,EMPTY,EMPTY,EMPTY];
+            case 4: return [EMPTY,EMPTY,EMPTY,EMPTY];
+            /*
+            case 0: return [EMPTY,EMPTY,EMPTY,BOX0 ];
+            case 1: return [EMPTY,EMPTY,BOX0 ,EMPTY];
+            case 2: return [EMPTY,BOX0 ,EMPTY,EMPTY];
+            case 3: return [BOX0 ,EMPTY,EMPTY,EMPTY];
+            case 4: return [EMPTY,EMPTY,EMPTY,EMPTY];
+            */
+        }
+    }
+    game.data   = new Uint8Array(game.w*game.h*4);
+    for (var i=0; i<game.w*game.h; i++) {
+        var v = height_to_map(game.height[i])
+        game.data[i*4+0]=v[0];
+        game.data[i*4+1]=v[1];
+        game.data[i*4+2]=v[2];
+        game.data[i*4+3]=v[3];
+    }
+    var gl = game.gl;
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false)
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false)
+    gl.bindTexture(gl.TEXTURE_2D,game.state.texture);
+    gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,game.w,game.h,gl.RGBA,gl.UNSIGNED_BYTE,game.data);
+    game.boxes({game_state:game.state},game.tiles);
+
+    // Tool actions
+    game.tool = SELECT;
+    game.set_tool=(i)=>{
+        console.log(i);
+        game.tool = i;
+    }
+    game.set_tile=(p,t,layers)=>{
+        var gl = game.gl;
+        var i  = (p.x+game.w*p.y)*4;
+        layers = layers || [0,1,2,3]
+        layers.forEach((j)=>{game.data[i+j]=t});
+        var c  = game.data.subarray(i,i+5);
+        gl.bindTexture  (gl.TEXTURE_2D,game.state.texture);
+        gl.texSubImage2D(gl.TEXTURE_2D,0,p.x,p.y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,c);
+        gl.bindTexture  (gl.TEXTURE_2D,null);
+    }
+    game.set_height=(p,h)=>{
+        //game.height = h;
+        var i = p.x+game.w*p.y;
+        game.height[i] = h;
+        console.log(p,game.height[i]);
+        var v = height_to_map(h);
+        var c  = game.data.subarray(i,i+5);
+        c[0]=v[0];
+        c[1]=v[1];
+        c[2]=v[2];
+        c[3]=v[3];
+
+        gl.bindTexture  (gl.TEXTURE_2D,game.state.texture);
+        gl.texSubImage2D(gl.TEXTURE_2D,0,p.x,p.y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,c);
+        gl.bindTexture  (gl.TEXTURE_2D,null);
+    };
+
+    game.update_focus=(gx,gy)=>{
+        var w = game.canvas.width;
+        var h = game.canvas.height;
+        var xpad = w/2/game.scale;
+        gx = Math.min(game.wpx-xpad,Math.max(xpad,gx));      
+        var ypad = h/2/game.scale;
+        gy = Math.min(game.hpx-ypad,Math.max(ypad,gy)); 
+        if (game.hpx*game.scale<=h) gy=game.hpx/2;
+        if (game.wpx*game.scale<=w) gx=game.wpx/2;
+        game.focus_x = gx;
+        game.focus_y = gy;
+    }
+
+    game.update_scale=(s,e)=>{
+        var w  = game.canvas.width;
+        var h  = game.canvas.height;
+        var s0 = game.scale;
+        s = s|| game.scale;
+        var s1 = Math.min(max_scale,Math.max(min_scale,s));
+        game.scale = s1;
+        e = e || {x:w/2,y:h/2};
+        game.update_focus(
+            game.focus_x+(e.x-w/2)*(1/s0-1/s1),
+            game.focus_y-(e.y-h/2)*(1/s0-1/s1));
+    }
+
+    // Event listeners
+
+    // Click applies current tool
+    game.tool_action=(e)=>{
+        if (game.tool==SELECT) {
+            if (game.downp) {
+                var r = window.devicePixelRatio;
+                game.update_focus(game.downp.gx-(e.x-game.downp.mx)*r/game.scale,
+                                  game.downp.gy+(e.y-game.downp.my)/game.scale);
+            }
+            return;
+        }
+        var p = mouse_to_game_point(game,e);
+        var q = {x:Math.floor(p.x/tile_w),y:Math.floor(p.y/tile_h)};
+        var pp = [];
+        if (game.isdown&&game.downp) {
+            //Bresenham's line algorithm
+            var x0=game.downp.qx;
+            var y0=game.downp.qy;
+            var x1 =q.x;
+            var y1 =q.y;
+            var dx = Math.abs(x1-x0);
+            var dy = -Math.abs(y1-y0);
+            var sx = x0<x1?1:-1;
+            var sy = y0<y1?1:-1;
+            var de = Math.abs(dy/dx);
+            var er = dx+dy;
+            var y  = y0;
+            while (true) {
+                var pr = pp[pp.length-1];
+                if (pr&&pr.x!=x0&&pr.y!=y0) pp.push({x:x0,y:pr.y});
+                pp.push({x:x0,y:y0});
+                if (x0==x1&&y0==y1) break;
+                var e2 = 2*er;
+                if (e2>=dy) {er+=dy;x0+=sx;}
+                if (e2<=dx) {er+=dx;y0+=sy;}
+            }
+        } else pp=[q];
+        /*
+        var tile, layers;
+        switch (game.tool) {
+            case DELETE: tile=EMPTY; layers=[0,1,2,3];break;
+            case BOX0:   tile=BOX0;  layers=[2];      break;
+            case BOX1:   tile=BOX1;  layers=[1];      break;
+            case BOX2:   tile=BOX2;  layers=[0];      break;
+            case BOX3:   tile=BOX3;  layers=[3];      break;
+            case DELETE: game.set_height(p);
+        }
+        pp.forEach((p)=>{game.set_tile(p,tile,layers)});
+        */
+
+        var h = 0;
+        switch (game.tool) {
+            case DELETE: h=0; break;
+            case BOX0: h=1; break;
+            case BOX1: h=2; break;
+            case BOX2: h=3; break;
+            case BOX3: h=4; break;
+        }
+        pp.forEach((p)=>{game.set_height(p,h)});
+
+        game.boxes({game_state:game.state},game.tiles);
+        game.render();
+    };
+    game.canvas.addEventListener("click",game.tool_action);
+
+    // Moving either drags tool or pans view
+    game.update_mouse_highlight=(e)=>{
+        var p = mouse_to_game_point(game,e);
+        game.select=[Math.floor(p.x/tile_w),Math.floor(p.y/tile_h)];
+        game.render();
+    };
+
+    game.canvas.addEventListener("mousemove", function(e) {
+        var button_state = e.buttons||e.which
+        if (game.isdown && !(button_state&1)) console.log("abnormal end of dragging");
+        game.isdown &= !!(button_state&1);
+        if (game.isdown) {
+            game.tool_action(e);
+            var p = mouse_to_game_point(game,e);
+            var q = {x:Math.floor(p.x/tile_w),y:Math.floor(p.y/tile_h)};
+            game.downp = {mx:e.x,my:e.y,gx:game.focus_x,gy:game.focus_y,px:p.x,py:p.y,qx:q.x,qy:q.y};
+            game.canvas.style.cursor="grabbing";
+        } else {
+            game.downp = null;
+            game.canvas.style.cursor="default";
+        }
+        game.update_mouse_highlight(e);
+    });
+
+    // Drag handlers
+    game.isdown=false;
+    game.downp ={mx:0,my:0,gx:0,gy:0};
+    
+    game.canvas.addEventListener("mousedown", function(e) {
+        var p = mouse_to_game_point(game,e);
+        var q = {x:Math.floor(p.x/tile_w),y:Math.floor(p.y/tile_h)};
+        game.downp  = {mx:e.x,my:e.y,gx:game.focus_x,gy:game.focus_y,px:p.x,py:p.y,qx:q.x,qy:q.y};
+        game.isdown = true;
+        game.canvas.style.cursor="grabbing";
+    });
+    
+    game.canvas.addEventListener("mouseup", function(e) {
+        game.isdown = false;
+        game.downp  = null;
+        game.canvas.style.cursor="default";
+    });
+
+    // Zoom w. scroll wheel
+    game.canvas.addEventListener("wheel", function(e) {
+        game.update_scale(game.scale/Math.exp(Math.sign(e.deltaY)*0.05),e);
+        game.render();
+    });
+
+    game.noselect=(e)=>{
+        game.select=[-1,1];
+        if (game.tool!=SELECT) {game.isdown=false;game.downp=false;}
+        game.render();
+    }
+    game.canvas.addEventListener("mouseleave",game.noselect);
+    game.canvas.addEventListener("mouseout"  ,game.noselect);
+
+    // Hilight buttons when corresponding key pressed
+    function keybutton(t) {
+        var button = controls.buttons[t];
+        if (button) {
+            controls.select = [button.x,button.y];
+            controls.render()
+        }
+    }
+
+    // Key-driven actions
+    game.left   =()=>{
+        if (game.tool!=0) {
+            game.select = [Math.max(0,game.select[0]), game.select[1]]
+        }
+        game.update_focus(game.focus_x-key_pan/game.scale,game.focus_y);
+        game.render(); 
+        keybutton(LEFT);
+    }
+    game.right  =()=>{
+        game.update_focus(game.focus_x+key_pan/game.scale,game.focus_y);
+        game.render(); 
+        keybutton(RIGHT);
+    }
+    game.down   =()=>{
+        game.update_focus(game.focus_x,game.focus_y-key_pan/game.scale);
+        game.render(); 
+        keybutton(DOWN);
+    }
+    game.up     =()=>{
+        game.update_focus(game.focus_x,game.focus_y+key_pan/game.scale);
+        game.render(); 
+        keybutton(UP);
+    }
+    game.zoomin =()=>{
+        game.update_scale(game.scale/key_zoom);
+        game.render();
+        keybutton(IN);
+    }
+    game.zoomout=()=>{
+        game.update_scale(game.scale*key_zoom);
+        game.render();
+        keybutton(OUT);
+    }
+
+    game.resize = ()=>{
+        var c = game.canvas;
+        var w = Math.round(c.clientWidth *window.devicePixelRatio);
+        var h = Math.round(c.clientHeight*window.devicePixelRatio);
+        if (c.width!=w||c.height!=h) {
+            c.width =w; 
+            c.height=h;
+            game.update_scale();
+            game.render();
+        }
+    }
+    window.addEventListener("resize",game.resize);
+
+    // Add keyboard navigation
+    window.addEventListener("keydown",(e)=>{
+        switch (e.key) {
+            case "ArrowLeft" : case "a": case "A": case "4":
+            game.left();
+            break;
+            case "ArrowRight": case "d": case "D": case "6":
+            game.right();
+            break;
+            case "ArrowDown" : case "s": case "S": case "2":
+            game.down();
+            break;
+            case "ArrowUp"   : case "w": case "W": case "8": 
+            game.up();
+            break;
+            case "PageUp"    : case "q": case "Q": case "9": case "-": case "_":
+            game.zoomin(); 
+            break;
+            case "PageDown"  : case "e": case "E": case "3": case "+": case "=":
+            game.zoomout();
+            break;
+        }
+    });
+
+    return game
+}
+
+/** 
+ * Main script that will run when the website loads
+ */
+function main()
+{
+    game     = init_game();
+    console.log("initialized game");
+    controls = init_controls();
+    console.log("initialized controls");
+    game.resize();
+    game.render();
+    controls.resize();
+    controls.render();
+}
+
+
+/**
+ * Load tiles image from base64 string.
+ * We wait until the image loads before initializing the WebGL environment.
+ * We achieve this by calling main() from the textures "onload" callback.
+ */
+function load_textures() {
+    tiles = new Image();
+    tiles.crossOrigin = "anonymous";
+    tiles.onload = main;
+    tiles.src = base64_textures.city_translucent;
+    console.log("loaded texture");
+}
+</script>
+</body>
+</htlm>

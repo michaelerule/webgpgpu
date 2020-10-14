@@ -208,10 +208,10 @@ function bindTexture(gl,program,varname,index,texture) {
 function newTexture(gl,params) {
     // Perform some validation and checking of arguments -- not all combinations
     // are permitted
-    var W     = params['size'] || params['width' ] || params['W'] || gl.width ;// || 256;
-    var H     = params['size'] || params['height'] || params['H'] || gl.height;// || 256;
-    var XEDGE = params['wrap_s'] || params['wrap'] || gl.CLAMP_TO_EDGE;
-    var YEDGE = params['wrap_t'] || params['wrap'] || gl.CLAMP_TO_EDGE;
+    var W     = params['size']   || params['width' ] || params['W'] || gl.width ;// || 256;
+    var H     = params['size']   || params['height'] || params['H'] || gl.height;// || 256;
+    var XEDGE = params['wrap_s'] || params['wrap']   || gl.CLAMP_TO_EDGE;
+    var YEDGE = params['wrap_t'] || params['wrap']   || gl.CLAMP_TO_EDGE;
     if ( (H&(H-1))!=0 || (W&(W-1))!=0 ) {
         console.log('Warning: repeated textures must have power of two size');
         console.log('Ignoring repeat setting and clamping to edge');
@@ -227,6 +227,7 @@ function newTexture(gl,params) {
         gl.TEXTURE_MIN_FILTER, params['min_filter'] || gl.LINEAR);
     gl.texParameteri(target, gl.TEXTURE_WRAP_S,XEDGE);
     gl.texParameteri(target, gl.TEXTURE_WRAP_T,YEDGE);
+
     // remaining parameters set by texImage2D
     ///*
     gl.texImage2D(target,
@@ -409,7 +410,7 @@ function newParameter(gl,program,unif) {
 /**
  * Retrieves variable information by name from a WebGL context
  * WebGL doesn't provide an easy way to do this. So, the first time
- * this function is called on a program, it enumates all unforms and
+ * this function is called on a program, it enumerates all unforms and
  * builds a model to query them by name
  * @param gl {WebGL context}
  * @param program {WebGL program} - shader program to search
@@ -503,13 +504,15 @@ function applyProgram(program,inputs,output) {
  *                           render to.
  */
 function getRasterGL(canvas) {
-    var gl = canvas.getContext("webgl", { alpha: false })
-          || canvas.getContext("experimental-webgl", { alpha: false });
+    //var gl = canvas.getContext("webgl", { alpha: false , })
+    //      || canvas.getContext("experimental-webgl", { alpha: false });
+    var gl = canvas.getContext("webgl", { alpha: false, preserveDrawingBuffer: true})
+          || canvas.getContext("experimental-webgl", { alpha: false, preserveDrawingBuffer: true});
     if (!gl) {
         alert("Browser does now support WebGL");
         return gl;
     }
-    // Set clear color and then clear the canvas
+    // Set clear color and then clear the canvas 
     gl.clearColor(0.0,0.0,0.0,0.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     // There are two dimensions we need to worry about

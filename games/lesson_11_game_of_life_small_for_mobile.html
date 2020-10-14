@@ -62,7 +62,7 @@ vec2 game_size;
 // Lookup positions of relevant tiles ("characters")
 #define MATURE  64
 #define NEWBORN 65
-#define DIED    80
+#define DIED    69
 #define SHADES  240
 void main() {
     vec2 dx = vec2(1.0/game_size.x,0.0);
@@ -133,11 +133,12 @@ function render() {
  * Main script that will run when the website loads
  */
 function main() {
-    gl = init_webgl_canvas();
+    canvas = init_webgl_canvas();
+    gl = canvas.gl;
     // Compile shader with new constants needed to index into the tiles texture
     tile_shader = get_tile_shader(gl,game_w_tiles,game_h_tiles,tile_w_px,tile_h_px,tiles_across);
     // Get game program
-    game_kernel = bind_program("game_of_life",{game_size:[game_w_tiles,game_h_tiles],});
+    game_kernel = bind_program(gl,"game_of_life",{game_size:[game_w_tiles,game_h_tiles]});
     // Get copy program
     copy = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
     // Create tiles texture
@@ -161,12 +162,24 @@ function main() {
     console.log("Loaded");
     // Start animation loop
     function animate(){
-        game_kernel({game_state:game_state},game_temp);
-        copy(game_temp,game_state);
-        render();
-        setTimeout(animate,200);
+        requestAnimationFrame(animate);
+        now = Date.now();
+        elapsed = now - then;
+        if (elapsed > fpsInterval) {
+            then = now - (elapsed % fpsInterval);
+            gl.viewport(0,0,game_w_tiles,game_h_tiles);
+            game_kernel({game_state:game_state},game_temp);
+            copy(game_temp,game_state);
+            render();
+        }
     }
-    animate();
+    function startAnimating(fps) {
+        fpsInterval = 1000 / fps;
+        then = Date.now();
+        startTime = then;
+        animate();
+    }
+    startAnimating(10.0);
 }
 
 /**

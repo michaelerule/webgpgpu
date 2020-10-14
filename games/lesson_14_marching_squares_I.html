@@ -56,7 +56,7 @@ vec2 game_size;
 </script>
 <script id="squares_upsample" type="x-shader/x-fragment">
 // Lookup positions of relevant tiles ("characters")
-#define SQUARES 128
+#define SQUARES 128-16
 void main() {
     vec2 dx = vec2(1.0/game_size.x,0.0);
     vec2 dy = vec2(0.0,1.0/game_size.y);
@@ -117,7 +117,6 @@ vec2 game_size;
 </script>
 <script id="update_game" type="x-shader/x-fragment">
 // Lookup positions of relevant tiles ("characters")
-#define SQUARES 128
 void main() {
     // Get state and noise
     vec2 p = gl_FragCoord.xy/game_size;
@@ -176,7 +175,8 @@ function render() {
  */
 function main()
 {
-    gl = init_webgl_canvas();
+    canvas = init_webgl_canvas();
+    gl = canvas.gl;
 
     // Create tiles texture
     texture = pixel_art_texture(gl,tiles);
@@ -184,7 +184,7 @@ function main()
     // Compile shader with new constants needed to index into the tiles texture
     // Excepts arguments twice as big as usual due to 2x upsampling from
     // marching squares.
-    tile_shader = bind_program("tile_shader",{
+    tile_shader = bind_program(gl,"tile_shader",{
         game_size   :[game_w_tiles*2,game_h_tiles*2],
         tile_size   :[tile_w_px     ,tile_h_px     ],
         screen_size :[game_w_px*2   ,game_h_px*2   ],
@@ -192,7 +192,7 @@ function main()
     });
 
     // Marching squares double size of game in tiles
-    marching_squares = bind_program("squares_upsample",{
+    marching_squares = bind_program(gl,"squares_upsample",{
         game_size:[game_w_tiles*2,game_h_tiles*2]
     });
     
@@ -220,19 +220,13 @@ function main()
     tile_ids = newBasicFramebuffer(gl,options);
     
     // Get GPU RNG kernel
-    gpurng = GPUNoise(gl,{
-        W:game_w_tiles,H:game_h_tiles
-    });
+    gpurng = GPUNoise(gl,{W:game_w_tiles,H:game_h_tiles});
 
     // Get game update rules
-    update_game = bind_program("update_game",{
-        game_size:[game_w_tiles,game_h_tiles]
-    });
+    update_game = bind_program(gl,"update_game",{game_size:[game_w_tiles,game_h_tiles]});
 
     // Get game copy kernel    
-    copy = GPUcopy(gl,{
-        W:game_w_tiles,H:game_h_tiles
-    });
+    copy = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles});
 
     // Run game init/update
     update_game({game_state:game_state,noise:rng_noise},game_temp);
@@ -240,21 +234,6 @@ function main()
 
     // Run marching squares
     marching_squares({game_state:game_state},tile_ids);
-
-    // GPU R
-    //copy        = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
-    // Prepare texture for game and RNG state 
-    //game_temp  = newBasicFramebuffer(gl,options);
-    //rng_noise  = newBasicFramebuffer(gl,options);
-    //rng_temp   = newBasicFramebuffer(gl,options);
-    // get GPU random number generator
-    //gpurng = GPUNoise(gl,{W:game_w_tiles,H:game_h_tiles});
-    //randomize_framebuffer(rng_noise);
-    //gpurng(rng_noise,rng_temp);
-    // Run initializer
-    //randomize_framebuffer(game_state);
-    //game_init({game_state:game_state},game_temp);
-    //copy(game_temp,game_state);
 
     // Set up UI and start.
     add_event_listeners();

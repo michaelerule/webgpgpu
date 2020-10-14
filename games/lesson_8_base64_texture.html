@@ -125,10 +125,9 @@ function render() {
  */
 function main()
 {
-    gl = init_webgl_canvas();
-    basic_program = bind_program("basic_program",{
-        game_w_px: game_w_px, 
-        game_h_px: game_h_px});
+    canvas = init_webgl_canvas();
+    gl = canvas.gl;
+    basic_program = bind_program(gl,"basic_program",{game_w_px:game_w_px,game_h_px:game_h_px});
     texture = pixel_art_texture(gl,tiles);
     add_event_listeners();
     resizeCanvas();

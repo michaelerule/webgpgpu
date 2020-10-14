@@ -154,9 +154,10 @@ function render() {
  * Main script that will run when the website loads
  */
 function main() {
-    gl = init_webgl_canvas();
+    canvas = init_webgl_canvas();
+    gl = canvas.gl;
     // Compile shader with new constants needed to index into the tiles texture
-    tile_shader = bind_program("tile_shader",{
+    tile_shader = bind_program(gl,"tile_shader",{
         game_size   :[game_w_tiles,game_h_tiles],
         tile_size   :[tile_w_px,tile_h_px],
         screen_size :[game_w_px,game_h_px],

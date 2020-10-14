@@ -64,8 +64,20 @@ function scale_to_screen() {
  * @param e {MouseEvent} mouse event object
  */
 function mouse_to_game_point(e) {
-    return {x:game_focus_x+(e.x-gl.canvas.width /2)/game_scale,
-            y:game_focus_y-(e.y-gl.canvas.height/2)/game_scale};
+    var r = window.devicePixelRatio;
+    return {x:game_focus_x+(e.clientX-canvas.clientWidth /2)/game_scale*r,
+            y:game_focus_y-(e.clientY-canvas.clientHeight/2)/game_scale*r};
+}
+
+
+/**
+ * Convert mouse event to game coordinates.
+ * @param e {MouseEvent} mouse event object
+ */
+function mouse_to_game_point2(game,e) {
+    var r = window.devicePixelRatio;
+    return {x:game.focus_x+(e.clientX-canvas.clientWidth /2)/game.scale*r,
+            y:game.focus_y-(e.clientY-canvas.clientHeight/2)/game.scale*r};
 }
 
 /**
@@ -80,6 +92,17 @@ function resizeCanvas() {
         update_game_scale(game_scale);
         render();
     }
+    /*
+    if (controls) {
+        var c = controls.canvas;
+        var w = Math.round(c.clientWidth*window.devicePixelRatio );
+        var h = Math.round(c.clientHeight*window.devicePixelRatio);
+        if (c.width!=w||c.height!=h) {
+            c.width =w; 
+            c.height=h;
+            controls.render();
+        }
+    }*/
 }
 
 /** 
@@ -96,17 +119,17 @@ function create_mouse_interface() {
      * Detect mouse clicks. At the moment, just prints coordinate in console.
      * @param e {MouseEvent} mouse event object
      */
-    canvas.onclick = function(e) {
-        console.log(mouse_to_game_point(e));
-    };
+    //canvas.addEventListener("click", function(e) {
+    //    console.log(mouse_to_game_point(e));
+    //});
     /** 
      * Handle panning of view view mouse dragging. First check that mouse is
      * really still pressed. If it is, update the view position.
      * @param e {MouseEvent} mouse event object
      */
-    canvas.onmousemove = function(e) {
+    canvas.addEventListener("mousemove", function(e) {
         //console.log("moved");
-        button_state = e.buttons===undefined?e.which:e.buttons;
+        var button_state = e.buttons===undefined?e.which:e.buttons;
         //if (isdown && !(button_state&1)) {
         //    console.log("abnormal end of dragging");
         //}
@@ -121,34 +144,34 @@ function create_mouse_interface() {
         } else {
             canvas.style.cursor="default";
         }
-    };
+    });
     /**
      * Detect mouse pressed. Store location of press in screen and game 
      * coordinates. This will be used to pan view by dragging mouse. 
      * @param e {MouseEvent} mouse event object
      */
-    canvas.onmousedown = function(e) {
+    canvas.addEventListener("mousedown", function(e) {
         downp = {mx:e.x,my:e.y,gx:game_focus_x,gy:game_focus_y};
         isdown = true;
         canvas.style.cursor="grabbing";
-    };
+    });
     /** 
      * Detect mouse released. End dragging.
      * @param e {MouseEvent} mouse event object
      */
-    canvas.onmouseup = function(e) {
+    canvas.addEventListener("mouseup", function(e) {
         isdown = false;
         //console.log("end dragging");
         canvas.style.cursor="default";
-    };
+    });
     /** 
      * Detect scroll wheel. This is used to zoom in/out. 
      * @param e {MouseEvent} mouse event object
      */
-    canvas.onwheel = function(e) {
+    canvas.addEventListener("wheel", function(e) {
         update_game_scale(game_scale/Math.exp(Math.sign(e.deltaY)*0.05),e);
         render();
-    };
+    });
 }
 
 /** 

@@ -95,7 +95,8 @@ function render() {
  */
 function main()
 {
-    gl = init_webgl_canvas();
+    canvas = init_webgl_canvas();
+    gl = canvas.gl;
     // Compile shader with new constants needed to index into the tiles texture
     tile_shader = get_tile_shader(gl,game_w_tiles,game_h_tiles,tile_w_px,tile_h_px,tiles_across);
     // Create tiles texture

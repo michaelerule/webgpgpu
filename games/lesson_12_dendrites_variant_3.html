@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8"/>
+<!--
+- Fill the screen with the game environment. No scrolling
+- Top portion of screen is game panel, bottom region console
+- Set up a basic web GL canvas environment that we'll use to draw the game
+- Move setup code into a library ("gpgpu")
+- Add bounded rendering region, with view scale and coordinates
+- Add mouse control: drag to pan, scroll wheel to zoom in/out
+- Add keyboard control: arrow keys to pan; +/- PgUp/PgDn to zoom
+- Render an image from texture using nearest-neighbor interpolation
+- Create a 2D game environment based on square tiles
+- Build a game of life demo using the tiles 
+
+We'll define a little game of life that uses our new tiles.
+- Tile ID number (r channel)
+- Game of life board state (g channel)
+- Diffusing cell density map (b channel)
+
+Useful
+https://webgl2fundamentals.org/webgl/lessons/webgl-anti-patterns.html
+https://stackoverflow.com/questions/13870677/resize-viewport-canvas-according-to-browser-window-size
+https://github.com/michaelerule/webgpgpu
+https://stackoverflow.com/a/7732968/900749
+https://www.w3schools.com/js/js_htmldom_events.asp
+https://javascript.info/introduction-browser-events
+https://developer.mozilla.org/en-US/docs/Web/Events
+https://stackoverflow.com/a/11183302/900749
+https://stackoverflow.com/a/11183333/900749
+https://www.javascripttutorial.net/javascript-dom/javascript-keyboard-events/
+https://github.com/michaelerule/webgpgpu/blob/master/examples/Example_15_load_image.html
+https://webglfundamentals.org/webgl/lessons/webgl-cors-permission.html
+https://stackoverflow.com/questions/21540520/how-to-perform-mipmapping-in-webgl
+-->
+<head>
+<script>
+window.addEventListener('load', function() {
+    load_textures();
+})
+</script>
+<script src="./lib/gpgpu.js"></script>
+<script src="./lib/gpurand.js"></script>
+<script src="./lib/parameters.js"></script>
+<script src="./user_event_handlers.js"></script>
+<script src="./webgl_game_initialization_helpers.js"></script>
+<script src="./base64_encoded_textures.js"></script>
+<link rel="stylesheet" type="text/css" href="lessons.css">
+</head>
+<body>
+<div id="outer_container">
+<canvas id="game_canvas" style="height:100%;"></canvas>
+</div>
+
+<!--
+A new shader for the game logic. This operates on a tiled grid, and uses
+color data to save game state
+-->
+<script id="dendrites_parameters" type="x-shader/x-fragment">
+sampler2D game_state;
+sampler2D noise;
+vec2 game_size;
+</script>
+<script id="dendrites" type="x-shader/x-fragment">
+// Lookup positions of relevant tiles ("characters")
+void main() {
+    vec2 dx = vec2(1.0/game_size.x,0.0);
+    vec2 dy = vec2(0.0,1.0/game_size.y);
+    vec2  p = gl_FragCoord.xy/game_size;
+    // Get neighborhood
+    vec4 s00 = texture2D(game_state,p-dy-dx);
+    vec4 s01 = texture2D(game_state,p-dy);
+    vec4 s02 = texture2D(game_state,p-dy+dx);
+    vec4 s10 = texture2D(game_state,p-dx);
+    vec4 s11 = texture2D(game_state,p);
+    vec4 s12 = texture2D(game_state,p+dx);
+    vec4 s20 = texture2D(game_state,p+dy-dx);
+    vec4 s21 = texture2D(game_state,p+dy);
+    vec4 s22 = texture2D(game_state,p+dy+dx);
+    // Get noise
+    vec4 n = texture2D(noise,p);
+    // Cells persist
+    bool cell = s11.g==1.0;
+    // How many  adjacent?
+    int near = int(s01.g+s10.g+s12.g+s21.g);
+    int far  = int(s00.g+s02.g+s20.g+s22.g);
+    // Growth rate varies
+    float growth_rate = cell? s11.a : 0.0;
+    // Cells randomly added only if they would not clash
+    float next;
+    if (cell) next = 1.0;
+    else if (near==1&&far<2) {
+        // need to figure out which one
+        growth_rate = max(max(s01.a,s10.a),max(s21.a,s12.a));
+        growth_rate += (n.r-0.5)*0.2;
+        next = float(n.g<0.05);//+0.2/(1.0+exp(-growth_rate+5.0)));
+    }
+    // Cull overcrowding
+    if (cell&&s11.b>0.0&&near+far>=7&&n.b<0.05) next=0.0;
+    // If newly-created cell
+    // Take max of immediate neighbors minus one
+    float distance = (next>0.5&&!cell)? max(max(s01.b,s10.b),max(s12.b,s21.b))+1.0/256.0 : s11.b;
+    // if a cell nearby is river, and is further away, become river
+    if (cell && s01.a>0.0 && s01.b>distance) s11.a = s01.a;
+    if (cell && s10.a>0.0 && s10.b>distance) s11.a = s10.a;
+    if (cell && s21.a>0.0 && s21.b>distance) s11.a = s21.a;
+    if (cell && s12.a>0.0 && s12.b>distance) s11.a = s12.a;
+    gl_FragColor = vec4(growth_rate,next,distance,s11.a);
+}
+</script>
+
+<script id="render_parameters" type="x-shader/x-fragment">
+sampler2D game_state;
+vec2 game_size;
+</script>
+<script id="render" type="x-shader/x-fragment">
+// Lookup positions of relevant tiles ("characters")
+#define box_charset 0
+#define background 242
+void main() {
+    vec2  p = gl_FragCoord.xy/game_size;
+    // Get neighborhood
+    vec4 s11 = texture2D(game_state,p);
+    // Cells persist
+    bool cell = s11.g==1.0;
+    float distance = s11.b;
+    int id = cell? 240 + int(distance*15.99) : 240-16-1;
+    if (s11.a==1.0) id = 0;
+    if (cell && s11.a>0.0 && s11.a<1.0) 
+        id = 240-16+int(s11.a*15.99);
+    cell = cell && s11.a>0.0;// && s11.a<1.0 ;
+    gl_FragColor = vec4(float(id)/255.0,float(cell),0.0,0.0);
+}
+</script>
+
+<!-- Marching squares + box drawing shader -->
+<script id="boxes_parameters" type="x-shader/x-fragment">
+sampler2D game_state;
+vec2 game_size;
+</script>
+<script id="boxes" type="x-shader/x-fragment">
+#define BOX         (176-48)
+#define EXTENDED    (BOX+16)
+#define background  (EXTENDED+31)
+void main() {
+    vec2 dx = vec2(1.0/game_size.x,0.0);
+    vec2 dy = vec2(0.0,1.0/game_size.y);
+    vec2  p = gl_FragCoord.xy/game_size;
+    ivec4 s01 = ivec4(texture2D(game_state,p-dy)+0.5);
+    ivec4 s10 = ivec4(texture2D(game_state,p-dx)+0.5);
+    ivec4 s11 = ivec4(texture2D(game_state,p)+0.5);
+    ivec4 s12 = ivec4(texture2D(game_state,p+dx)+0.5);
+    ivec4 s21 = ivec4(texture2D(game_state,p+dy)+0.5);
+    int cell = s11.g;
+    int near = s01.g+s10.g+s12.g+s21.g;
+    int id = background;
+    if (s11.g==1) {
+        id = s21.g+s12.g*2+s01.g*4+s10.g*8;
+        ivec4 s00 = ivec4(texture2D(game_state,p-dy-dx)+0.5);
+        ivec4 s02 = ivec4(texture2D(game_state,p-dy+dx)+0.5);
+        ivec4 s20 = ivec4(texture2D(game_state,p+dy-dx)+0.5);
+        ivec4 s22 = ivec4(texture2D(game_state,p+dy+dx)+0.5);
+        int c;
+        if      (id== 3) {if (s22.g==1) id=16;}
+        else if (id== 6) {if (s02.g==1) id=17;}
+        else if (id== 9) {if (s20.g==1) id=18;}
+        else if (id==12) {if (s00.g==1) id=19;}
+        else if (id== 7) {c=s22.g+s02.g*2; if (c>0) id=19+c;}
+        else if (id==11) {c=s20.g+s22.g*2; if (c>0) id=22+c;}
+        else if (id==13) {c=s00.g+s20.g*2; if (c>0) id=25+c;}
+        else if (id==14) {c=s02.g+s00.g*2; if (c>0) id=28+c;}
+        else if (id==15) {c=s20.g+s22.g*2+s02.g*4+s00.g*8;id=(c>0)?31+c:15;}
+        id += BOX;
+    }
+    gl_FragColor = vec4(float(id)/255.0,s11.g,0.0,0.0);
+}
+</script>
+
+<script>
+// Configuration constants.
+// The game size is now defined in terms of tiles. 
+const game_w_tiles = 128;
+const game_h_tiles = 128;
+// We need to know shape of tiles in the tiles texture, as well as
+// how many tiles across it is
+const tile_w_px    = 8;
+const tile_h_px    = 8;
+const tiles_across = 16;
+// Calculated game shape in pixels
+const game_w_px    = game_w_tiles*tile_w_px;
+const game_h_px    = game_h_tiles*tile_h_px;
+// View behavior and limits
+const max_scale    = 4;
+const min_scale    = 1.0;
+const key_pan      = 10;
+const key_zoom     = 1.1;
+// Global variables (mutable)
+var game_focus_x = game_w_px/2;
+var game_focus_y = game_h_px/2;
+var game_scale   = 1.0;
+
+/**
+ * Render game on canvas using current canvas size, scale, and focus point. 
+ */
+function render() {
+    var w = gl.canvas.width;
+    var h = gl.canvas.height;
+    gl.viewport(0,0,w,h);
+    var s = 1.0/game_scale;
+    var x = Math.floor(game_focus_x-w/2*s);
+    var y = Math.floor(game_focus_y-h/2*s);
+    tile_shader({tiles:texture,tile_ids:tiles,view_transform:[x,y,s]});
+};
+
+/** 
+ * Main script that will run when the website loads
+ */
+function main()
+{
+    canvas = init_webgl_canvas();
+    gl = canvas.gl;
+    // Compile shader with new constants needed to index into the tiles texture
+    tile_shader = get_tile_shader(gl,game_w_tiles,game_h_tiles,tile_w_px,tile_h_px,tiles_across);
+    // Get game program, initializer, and copy program
+    game_kernel   = bind_program(gl,"dendrites",{game_size:[game_w_tiles,game_h_tiles]});
+    boxes_kernel  = bind_program(gl,"boxes",{game_size:[game_w_tiles,game_h_tiles]});
+    render_kernel = bind_program(gl,"render",{game_size:[game_w_tiles,game_h_tiles]});
+    copy          = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
+    // Create tiles texture
+    texture = pixel_art_texture(gl,tiles);
+    
+    // Prepare texture for game and RNG state 
+    options = {
+        width:game_w_tiles, 
+        height:game_h_tiles, 
+        mag_filter:gl.NEAREST, 
+        min_filter:gl.LINEAR, 
+        wrap:gl.CLAMP_TO_EDGE}
+    tiles      = newBasicFramebuffer(gl,options);
+    game_state = newBasicFramebuffer(gl,options);
+    game_temp  = newBasicFramebuffer(gl,options);
+    rng_noise  = newBasicFramebuffer(gl,options);
+    rng_temp   = newBasicFramebuffer(gl,options);
+    
+    // get GPU random number generator
+    gpurng = GPUNoise(gl,{W:game_w_tiles,H:game_h_tiles});
+    randomize_framebuffer(rng_noise);
+    gpurng(rng_noise,rng_temp);
+    
+    render_kernel({game_state:game_state},game_temp);
+    boxes_kernel({game_state:game_temp},tiles);
+
+    // Seed with one nucleus
+    // Test the just setting method
+    var t0 = performance.now();
+    gl.bindTexture  (gl.TEXTURE_2D, game_state.texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);
+    var l = 4;
+    data = new Uint8Array(4*l*l);
+    for (var x=0; x<l; x++)
+    for (var y=0; y<l; y++)
+        if ((x-l/2)*(x-l/2)+(y-l/2)*(y-l/2)<l*l/5)
+            data[(x+y*l)*4+1]=data[(x+y*l)*4+3]=255;
+    for (var i=0; i<1; i++) {
+        var x = Math.floor(Math.random()*(game_w_tiles-l));
+        var y = Math.floor(Math.random()*(game_h_tiles-l));
+        gl.texSubImage2D(gl.TEXTURE_2D,0,x,y,l,l,gl.RGBA,gl.UNSIGNED_BYTE,data);
+    }
+    for (var i=0; i<450; i++) {
+        var x = Math.max(0,Math.min(game_w_tiles-1,Math.floor((Math.random())*game_w_tiles)));
+        var y = Math.max(0,Math.min(game_h_tiles-1,Math.floor((Math.random())*game_h_tiles)));
+        gl.texSubImage2D(gl.TEXTURE_2D,0,x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([0,0,0,255]));
+    }
+    gl.bindTexture(gl.TEXTURE_2D, null);
+
+    // Set up UI and start.
+    add_event_listeners();
+    resizeCanvas();
+    console.log("Loaded");
+
+    function animate() {
+        requestAnimationFrame(animate);
+        now = Date.now();
+        elapsed = now - then;
+        if (elapsed > fpsInterval) {
+            then = now - (elapsed % fpsInterval);
+            for (var i=0; i<50; i++) {
+                gpurng(rng_noise,rng_temp);
+                game_kernel({game_state:game_state,noise:rng_noise},game_temp);
+                copy(game_temp,game_state);
+            }
+            render_kernel({game_state:game_state},game_temp);
+            boxes_kernel({game_state:game_temp},tiles);
+            render();
+        }
+    }
+    function startAnimating(fps) {
+        fpsInterval = 1000 / fps;
+        then = Date.now();
+        startTime = then;
+        animate();
+    }
+    startAnimating(15.0);
+}
+
+
+/**
+ * Load tiles image from base64 string.
+ * We wait until the image loads before initializing the WebGL environment.
+ * We achieve this by calling main() from the textures "onload" callback.
+ */
+function load_textures() {
+    tiles = new Image();
+    tiles.crossOrigin = "anonymous";
+    tiles.onload = main;
+    tiles.src = base64_textures.tiles;
+}
+</script>
+</body>
+</htlm>

@@ -77,6 +77,7 @@ void main() {
     m.a = clamp(m.b,0.0,1.0);
     int id = 240-16+int(m.a*15.999);
     if (id>255) id=255;
+    //if (m.a<0.2) id = 32;
     gl_FragColor = vec4(float(id)/255.0,m.gba);
 }
 </script>
@@ -96,8 +97,8 @@ const tiles_across = 16;
 const game_w_px    = game_w_tiles*tile_w_px;
 const game_h_px    = game_h_tiles*tile_h_px;
 // View behavior and limits
-const max_scale    = 32;
-const min_scale    = 2;
+const max_scale    = 8;
+const min_scale    = 1;
 const key_pan      = 10;
 const key_zoom     = 1.1;
 // Global variables (mutable)
@@ -123,7 +124,8 @@ function render() {
  */
 function main()
 {
-    gl = init_webgl_canvas();
+    canvas = init_webgl_canvas();
+    gl = canvas.gl;
     // Create tiles texture
     texture = pixel_art_texture(gl,tiles);
     // Compile shader with new constants needed to index into the tiles texture
@@ -161,7 +163,6 @@ function main()
     // Set up UI and start.
     add_event_listeners();
     resizeCanvas();
-    scale_to_screen();
     render();
     console.log("Loaded");
     // Start an animation loop
