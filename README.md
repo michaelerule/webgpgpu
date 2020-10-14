@@ -258,6 +258,48 @@ Full-screen test of a logarithmically-mapped Wilson-Cowan pattern forming system
 </td></tr>
 </table>
 
+
+#  "Games"
+Not actually games, but rather explorations of using a tile shader with various cellular automata. The first few examples just set up basic [(1) html](https://michaelerule.github.io/webgpgpu/games/lesson_1_hello_html.html), render a [(2) test canvas](https://michaelerule.github.io/webgpgpu/games/lesson_2_hello_canvas.html), and then check that things are [(3) working](https://michaelerule.github.io/webgpgpu/games/lesson_3_gpgpu_library.html) with the webgpgpu javascript library. The next few examples check that we've configured the [(4) viewport](https://michaelerule.github.io/webgpgpu/games/lesson_4_hello_viewport.html) correctly, and build up [(5) mouse](https://michaelerule.github.io/webgpgpu/games/lesson_5_mouse_panning.html) and [(6) keyboard](https://michaelerule.github.io/webgpgpu/games/lesson_6_keyboard_panning.html) interaction.
+<table>
+  
+<tr><td width='120'><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_7_hello_texture.html"><img src='https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-20-51.png' width='100'/></a></td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_7_hello_texture.html"><h4>Game Example 7: "Hello Texture"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_7_hello_texture.html">view example</a>)
+<break/>
+Load a texture of 256 8×8 tiles from a web resource. We'll use this texture to render pixels of the game not as colors, but as character-like tiles. Mouse and keyboard zoom/pan should work.
+</td></tr>
+  
+<tr><td width='120'><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_8_base64_texture.html"><img src='https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-20-59.png' width='100'/></a></td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_8_base64_texture.html"><h4>Game Example 8: "Base64 Texture"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_8_base64_texture.html">view example</a>)
+<break/>
+Encode texture in javascript source in base64. This side-steps the cross-domain restrictions and makes it slightly less painful to edit the texture locally when developing. Mouse panning and zoom should work.
+</td></tr>
+  
+<tr><td width='120'><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_9_hello_tiles.html"><img src='https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-21-17.png' width='100'/></a></td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_9_hello_tiles.html"><h4>Game Example 9: "Hello Tiles"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_9_hello_tiles.html">view example</a>)
+<break/>
+Get a tile shader working that renders 8x8 tiles at a large size to the screen, with 1:1 matching of canvas to device pixels. 
+</td></tr>
+
+<tr><td width='120'><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_10_hello_noise.html"><img src='https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot_2020-10-14_22-15-48.png' width='100'/></a></td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_10_hello_noise.html"><h4>Game Example 10: "Hello Noise"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_10_hello_noise.html">view example</a>)
+<break/>
+Tests random number generation and renders noisy pixels as randomly selected tiles from a texture of 256 8x8 pixel tiles.
+</td></tr>
+  
+<tr><td width='120'><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_11_game_of_life.html"><img src='https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot_2020-10-14_22-16-04.png' width='100'/></a></td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_11_game_of_life.html"><h4>Game Example 11: "Game of Life"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_11_game_of_life.html">view example</a>)
+<break/>
+Conway's game-of-life with a wacky tile shader. Dying cells are skulls. Colors diffuse outward from living areas.
+</td></tr>
+
+</table>
+
 Unless otherwise specified, media, text, and rendered outputs are licensed under the [Creative Commons Attribution Share Alike 4.0 license](https://choosealicense.com/licenses/cc-by-sa-4.0/) (CC BY-SA 4.0). Source code is licensed under the [GNU General Public License version 3.0](https://www.gnu.org/copyleft/gpl.html) (GPLv3). The CC BY-SA 4.0 is [one-way compatible](https://creativecommons.org/compatiblelicenses) with the GPLv3 license. 
 
 
