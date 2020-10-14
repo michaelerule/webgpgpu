@@ -298,6 +298,13 @@ Tests random number generation and renders noisy pixels as randomly selected til
 Conway's game-of-life with a wacky tile shader. Dying cells are skulls. Colors diffuse outward from living areas.
 </td></tr>
 
+<tr><td width='120'><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_13_forest_fire.html"><img src='https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-18-09.png' width='100'/></a></td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_13_forest_fire.html"><h4>Game Example 13: "Forest Fire"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_13_forest_fire.html">view example</a>)
+<break/>
+Forest fire cellular automata. Trees burn, turn to ash, then grass, then shrub, then trees, then burn again. Should be close-ish to criticality, and generate patterns at a range of scales. 
+</td></tr>
+
 </table>
 
 Unless otherwise specified, media, text, and rendered outputs are licensed under the [Creative Commons Attribution Share Alike 4.0 license](https://choosealicense.com/licenses/cc-by-sa-4.0/) (CC BY-SA 4.0). Source code is licensed under the [GNU General Public License version 3.0](https://www.gnu.org/copyleft/gpl.html) (GPLv3). The CC BY-SA 4.0 is [one-way compatible](https://creativecommons.org/compatiblelicenses) with the GPLv3 license. 
