@@ -302,7 +302,7 @@ Conway's game-of-life with a wacky tile shader. Dying cells are skulls. Colors d
 <td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_13_forest_fire.html"><h4>Game Example 13: "Forest Fire"</h4></a>
 (<a href="https://michaelerule.github.io/webgpgpu/games/lesson_13_forest_fire.html">view example</a>)
 <break/>
-Forest fire cellular automata. Trees burn, turn to ash, then grass, then shrub, then trees, then burn again. Should be close-ish to criticality, and generate patterns at a range of scales. 
+Forest fire cellular automata. Trees burn, turn to ash, then grass, then shrub, then trees, then burn again. Should be close-ish to criticality, and generate patterns at a range of scales. Same as the model for developmental retinal waves in [this paper](https://mrule-intheworks.blogspot.com/2019/02/neural-field-models-for-latent-state.html).
 </td></tr>
 
 </table>
