@@ -5,8 +5,14 @@ This library contains a series of walk-through examples, starting from "hello GP
 [woitzel](http://webglplayground.net/gallery),
 [houston](https://bl.ocks.org/robinhouston/ed597847175cf692ecce),
 [inear](http://www.inear.se/patterns/demo1/)).
+
+
 The aim is to construct minimal examples using only HTML, Javascript and WebGL (no libraries). 
+
 Previews and descriptions of the examples can be found [here](https://michaelerule.github.io/webgpgpu/examples/example_previews/index.html), and the files contained in this repository can be browsed on [Github pages](https://michaelerule.github.io/webgpgpu/).
+
+Explore project contents in browser: [examples](https://michaelerule.github.io/webgpgpu/examples/index.html) and (not quite) [games](https://michaelerule.github.io/webgpgpu/games/index.html).
+
 Other examples of using WebGL for GPGPU code can be found here ([1](https://github.com/holgerl/webgl-gpgpu)
 [2](https://github.com/stormcolor/webclgl)
 [3](http://www.vizitsolutions.com/portfolio/webgl/gpgpu/)
@@ -260,7 +266,7 @@ Full-screen test of a logarithmically-mapped Wilson-Cowan pattern forming system
 
 
 #  "Games"
-Not actually games, but rather explorations of using a tile shader with various cellular automata. The first few examples just set up basic [(1) html](https://michaelerule.github.io/webgpgpu/games/lesson_1_hello_html.html), render a [(2) test canvas](https://michaelerule.github.io/webgpgpu/games/lesson_2_hello_canvas.html), and then check that things are [(3) working](https://michaelerule.github.io/webgpgpu/games/lesson_3_gpgpu_library.html) with the webgpgpu javascript library. The next few examples check that we've configured the [(4) viewport](https://michaelerule.github.io/webgpgpu/games/lesson_4_hello_viewport.html) correctly, and build up [(5) mouse](https://michaelerule.github.io/webgpgpu/games/lesson_5_mouse_panning.html) and [(6) keyboard](https://michaelerule.github.io/webgpgpu/games/lesson_6_keyboard_panning.html) interaction.
+Not actually games, but rather explorations of using a tile shader with various cellular automata. The first few examples just set up basic [(1) html](https://michaelerule.github.io/webgpgpu/games/lesson_1_hello_html.html), render a [(2) test canvas](https://michaelerule.github.io/webgpgpu/games/lesson_2_hello_canvas.html), and then check that things are [(3) working](https://michaelerule.github.io/webgpgpu/games/lesson_3_gpgpu_library.html) with the webgpgpu javascript library. The next few examples check that we've configured the [(4) viewport](https://michaelerule.github.io/webgpgpu/games/lesson_4_hello_viewport.html) correctly, and build up [(5) mouse](https://michaelerule.github.io/webgpgpu/games/lesson_5_mouse_panning.html) and [(6) keyboard](https://michaelerule.github.io/webgpgpu/games/lesson_6_keyboard_panning.html) interaction. The remaining examples render fun things like...
 <table>
   
 <tr><td width='120'><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_7_hello_texture.html"><img src='https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-20-51.png' width='100'/></a></td>
@@ -311,6 +317,87 @@ Cellular automata performing a sort of diffusion-limited aggregation. Dendrites 
 <break/>
 Forest fire cellular automata. Trees burn, turn to ash, then grass, then shrub, then trees, then burn again. Should be close-ish to criticality, and generate patterns at a range of scales. Same as the model for developmental retinal waves in <a href="https://mrule-intheworks.blogspot.com/2019/02/neural-field-models-for-latent-state.html">this paper</a>.
 </td></tr>
+
+
+neural dendrite
+https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-48-10.png
+
+terragen
+https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-48-38.png
+
+interact 1
+https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-48-54.png
+https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-49-03.png
+
+roads
+https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-51-13.png
+
+trasparent
+https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-52-50.png
+
+terrainshade
+https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-53-42.png
+
+purpdend
+https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2023-04-49.png
+part
+https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2023-04-55.png
+
+bwden
+https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2023-05-04.png
+part
+https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2023-05-14.png
+
+marchbox
+https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot_2020-10-14_23-04-03.png
+
+msqshit
+https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-18-38.png
+
+https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_14_marching_squares_I.htmlhttps://michaelerule.github.io/webgpgpu/games/lesson_14_marching_squares_I.html
+
+https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_15_marching_squares_II.html
+https://michaelerule.github.io/webgpgpu/games/lesson_15_marching_squares_II.html
+
+https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_17_marching_boxes.html
+https://michaelerule.github.io/webgpgpu/games/lesson_17_marching_boxes.html
+
+https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_17b_marching_boxes_game_of_life.htmlhttps://michaelerule.github.io/webgpgpu/games/lesson_17b_marching_boxes_game_of_life.html
+
+https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_17c_marching_boxes_hello_world.html
+https://michaelerule.github.io/webgpgpu/games/lesson_17c_marching_boxes_hello_world.html
+
+https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_A_shader_method.html
+https://michaelerule.github.io/webgpgpu/games/lesson_18_hello_interaction_A_shader_method.html
+
+https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_B_test_get_pixels.html
+https://michaelerule.github.io/webgpgpu/games/lesson_18_hello_interaction_B_test_get_pixels.html
+
+https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_C_getset_method.html
+https://michaelerule.github.io/webgpgpu/games/lesson_18_hello_interaction_C_getset_method.html
+
+https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_D_compare_benchmarks.html
+https://michaelerule.github.io/webgpgpu/games/lesson_18_hello_interaction_D_compare_benchmarks.html
+
+https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_19_draw_pipes.html
+https://michaelerule.github.io/webgpgpu/games/lesson_19_draw_pipes.html
+
+https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_20_layered_tile_kernel.html
+https://michaelerule.github.io/webgpgpu/games/lesson_20_layered_tile_kernel.html
+
+https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_21_terrain_kernel.html
+https://michaelerule.github.io/webgpgpu/games/lesson_21_terrain_kernel.html
+
+
+
+
+
+
+
+
+
+
+
 
 </table>
 
