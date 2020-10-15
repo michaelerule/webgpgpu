@@ -397,7 +397,7 @@ Generates terrain using a diffusion-smoothed noise-driven height field. Threshol
 <img src="https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-49-03.png" width='100'/>
 </a>
 </td>
-<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_C_getset_method.html"><h4>Game Example 18: "Read/write data in textire"</h4></a>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_C_getset_method.html"><h4>Game Example 18: "Read/write data in texture"</h4></a>
 (<a href="https://michaelerule.github.io/webgpgpu/games/lesson_18_hello_interaction_C_getset_method.html">run in browser</a>)
 <break/>
 Explores several methods of modifying texture data. 
