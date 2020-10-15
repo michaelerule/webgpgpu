@@ -317,88 +317,133 @@ Cellular automata performing a sort of diffusion-limited aggregation. Dendrites 
 <break/>
 Forest fire cellular automata. Trees burn, turn to ash, then grass, then shrub, then trees, then burn again. Should be close-ish to criticality, and generate patterns at a range of scales. Same as the model for developmental retinal waves in <a href="https://mrule-intheworks.blogspot.com/2019/02/neural-field-models-for-latent-state.html">this paper</a>.
 </td></tr>
-
-
-neural dendrite
-https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-48-10.png
-
-terragen
-https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-48-38.png
-
-interact 1
-https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-48-54.png
-https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-49-03.png
-
-roads
-https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-51-13.png
-
-trasparent
-https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-52-50.png
-
-terrainshade
-https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-53-42.png
-
-purpdend
-https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2023-04-49.png
-part
-https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2023-04-55.png
-
-bwden
-https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2023-05-04.png
-part
-https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2023-05-14.png
-
-marchbox
-https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot_2020-10-14_23-04-03.png
-
-msqshit
-https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-18-38.png
-
-https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_14_marching_squares_I.htmlhttps://michaelerule.github.io/webgpgpu/games/lesson_14_marching_squares_I.html
-
-https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_15_marching_squares_II.html
-https://michaelerule.github.io/webgpgpu/games/lesson_15_marching_squares_II.html
-
-https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_17_marching_boxes.html
-https://michaelerule.github.io/webgpgpu/games/lesson_17_marching_boxes.html
-
-https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_17b_marching_boxes_game_of_life.htmlhttps://michaelerule.github.io/webgpgpu/games/lesson_17b_marching_boxes_game_of_life.html
-
-https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_17c_marching_boxes_hello_world.html
-https://michaelerule.github.io/webgpgpu/games/lesson_17c_marching_boxes_hello_world.html
-
-https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_A_shader_method.html
-https://michaelerule.github.io/webgpgpu/games/lesson_18_hello_interaction_A_shader_method.html
-
-https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_B_test_get_pixels.html
-https://michaelerule.github.io/webgpgpu/games/lesson_18_hello_interaction_B_test_get_pixels.html
-
-https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_C_getset_method.html
-https://michaelerule.github.io/webgpgpu/games/lesson_18_hello_interaction_C_getset_method.html
-
-https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_D_compare_benchmarks.html
-https://michaelerule.github.io/webgpgpu/games/lesson_18_hello_interaction_D_compare_benchmarks.html
-
-https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_19_draw_pipes.html
-https://michaelerule.github.io/webgpgpu/games/lesson_19_draw_pipes.html
-
-https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_20_layered_tile_kernel.html
-https://michaelerule.github.io/webgpgpu/games/lesson_20_layered_tile_kernel.html
-
-https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_21_terrain_kernel.html
-https://michaelerule.github.io/webgpgpu/games/lesson_21_terrain_kernel.html
-
-
-
-
-
-
-
-
-
-
-
-
+<tr>
+<td width='120'>
+<a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_12_dendrites_variant_3.html">
+<img src="https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-48-10.png" width='100'/>
+</a>
+</td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_12_dendrites_variant_3.html"><h4>Game Example 12 variant: "Neural Dendrites"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_12_dendrites_variant_3.html">view example</a>)
+<break/>
+Nucleate invisible dendrites from a seed. Around the environment are scattered invisible targets ("synapses"). When a dendrite forms a synapse, it becomes visible. Store a distance-from-seed value in the invisible exploratory dendrite in order to trace a path back to the seed ("cell"). 
+</td>
+</tr>
+<tr>
+<td width='120'>
+<a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_14_marching_squares_I.html">
+<img src="https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-18-38.png" width='100'/>
+</a>
+</td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_14_marching_squares_I.html"><h4>Game Example 14: "Marching Squares"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_14_marching_squares_I.html">view example</a>)
+<break/>
+Broken/ugly terrain example with marching squares.
+</td>
+</tr>
+<tr>
+<td width='120'>
+<a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_15_marching_squares_II.html">
+<img src="https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/terrain_march_squares.png" width='100'/>
+</a>
+</td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_15_marching_squares_II.html"><h4>Game Example 15: "Marching Squares"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_15_marching_squares_II.html">view example</a>)
+<break/>
+Terrain example with marching squares, less broken.
+</td>
+</tr>
+<tr>
+<td width='120'>
+<a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_17_marching_boxes.html
+">
+<img src="https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot_2020-10-14_23-04-03.png" width='100'/>
+</a>
+</td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_17_marching_boxes.html
+"><h4>Game Example 17: "Marching Boxes"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_17_marching_boxes.html">view example</a>)
+<break/>
+Marching boxes shader as described in <a href="https://crawlingrobotfortress.blogspot.com/2020/09/box-drawing-characters-marching-squares.html">this post</a>.
+</td>
+</tr>
+<tr>
+<td width='120'>
+<a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_17b_marching_boxes_game_of_life.html">
+<img src="https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/mbgol.png" width='100'/>
+</a>
+</td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_17b_marching_boxes_game_of_life.html"><h4>Game Example 17b: "Marching-Boxes Game of Life"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_17b_marching_boxes_game_of_life.html">view example</a>)
+<break/>
+Conways game of life rendered with the marching boxes shader.
+</td>
+</tr>
+<tr>
+<td width='120'>
+<a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_17c_marching_boxes_hello_world.html">
+<img src="https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-48-38.png" width='100'/>
+</a>
+</td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_17c_marching_boxes_hello_world.html"><h4>Game Example 17c: "Map Generator"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_17c_marching_boxes_hello_world.html">view example</a>)
+<break/>
+Generates terrain using a diffusion-smoothed noise-driven height field. Thresholds tis to demarcate land/boundary. Runs a variant of the dendrites cellular automata to add rivers.
+</td>
+</tr>
+<tr>
+<td width='120'>
+<a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_C_getset_method.html">
+<img src="https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-49-03.png" width='100'/>
+</a>
+</td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_C_getset_method.html"><h4>Game Example 18: "Read/write data in textire"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_18_hello_interaction_C_getset_method.html">view example</a>)
+<break/>
+Explores several methods of modifying texture data. 
+<a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_A_shader_method.html">Test A</a> 
+does something a bit silly: it calls an entire shader to read/edit/modify a single pixel. This is still, surprisingly, faster than reading data back of the GPU (<a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_B_test_get_pixels.html">Test B</a>, <a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_C_getset_method.html">C</a>), but you shouldn't do it this way. 
+<a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_18_hello_interaction_D_compare_benchmarks.html">Test D</a> prints benchmarks to the console
+<a href="https://michaelerule.github.io/webgpgpu/games/lesson_18_hello_interaction_D_compare_benchmarks.html">(run it)</a>.
+On my system, using a shader get/set with the full viewport costs 42 ms; Restricting viewport to single pixel actually took longer, 131 ms. Reading-writing using memory copy took a whopping 1.3 seconds, whereas simply setting a single pixel took 11 ms. <i>TLDR: the best method is to retain a copy of the game state on the CPU. Do any editing there, then transfer the changes write-only with a memory copy to the GPU</i>. 
+</td>
+</tr>
+<tr>
+<td width='120'>
+<a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_19_draw_pipes.html">
+<img src="https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-51-13.png" width='100'/>
+</a>
+</td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_19_draw_pipes.html"><h4>Game Example 18: Draw Pipes</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_19_draw_pipes.html">view example</a>)
+<break/>
+Mouse interaction lets you edit a map to draw draw roads, pipes, cables. Inspired by classic sim city.
+</td>
+</tr>
+<tr>
+<td width='120'>
+<a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_20_layered_tile_kernel.html">
+<img src="https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-52-50.png" width='100'/>
+</a>
+</td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_20_layered_tile_kernel.html"><h4>Game Example 20: "Layered Pipe-Drawing Kernel"</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_20_layered_tile_kernel.html">view example</a>)
+<break/>
+Same as example 19, but now we composite layers atop one another, so pipes/roads/cabels can cross. Still stores all the game state in the RGBA color data of a texture. 
+</td>
+</tr>
+<tr>
+<td width='120'>
+<a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_21_terrain_kernel.html">
+<img src="https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-53-42.png" width='100'/>
+</a>
+</td>
+<td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_21_terrain_kernel.html"><h4>Game Example 21: Layered Terrain Edit</h4></a>
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_21_terrain_kernel.html">view example</a>)
+<break/>
+This is unfinished. Goal was to make a map editor with different elevations of terrain, rendered using the "marching boxes" shader.
+</td>
+</tr>
 </table>
 
 Unless otherwise specified, media, text, and rendered outputs are licensed under the [Creative Commons Attribution Share Alike 4.0 license](https://choosealicense.com/licenses/cc-by-sa-4.0/) (CC BY-SA 4.0). Source code is licensed under the [GNU General Public License version 3.0](https://www.gnu.org/copyleft/gpl.html) (GPLv3). The CC BY-SA 4.0 is [one-way compatible](https://creativecommons.org/compatiblelicenses) with the GPLv3 license. 
