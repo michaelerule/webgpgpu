@@ -120,7 +120,6 @@ vec2 game_size;
 #define ISLOAD(s) (BVAL((s),LOAD_BIT))
 #define ISWAIT(s) (BVAL((s),WAIT_BIT))
 
-
 // Get 2-bit movement code from state (lowest 2 bits)
 // 0: move up    (negative y)
 // 1: move left  (negative x)
@@ -138,7 +137,6 @@ vec2 game_size;
 #define MOVE_D (3)
 #define MOVE_INTO_CODES (ivec4(0,2,1,3))
 //3,2,1,0))
-
 // Vectorized versions of the above
 #define BVALS(x,i)   (greaterThan(vec4(ivec4(mod((x)/pow(2.0,float(i)),2.0))),vec4(0.0)))
 #define ISMOVES(s)   (BVALS((s),MOVE_BIT))
@@ -146,17 +144,14 @@ vec2 game_size;
 #define ISPULLS(s)   (BVALS((s),LOAD_BIT))
 #define ISWAITS(s)   (BVALS((s),WAIT_BIT))
 #define MOVECODES(s) (ivec4(mod(s,4.0)))
-
 float EncodeFloat( float v ) {
     return floor(255.0*v+0.5)/255.0;
 }
 float EncodeByte(int i) {
     return floor(clamp(float(i),0.0,255.0)+0.5)/255.0;
 }
-
 #define Tc 2.26918531421
 #define tau 1.0
-
 void main() {
     // Get pixel size in texture coordinates
     vec2 dx = vec2(1.0/game_size.x,0.0);
@@ -183,7 +178,7 @@ void main() {
     // We'll use {-1,1} spins
     vec4  s = vec4(U.g,L.g,R.g,D.g)*2.0-1.0;
     float b = s11.g*2.0-1.0;
-    float q = b*(dot(vec4(1.0),s)+b)*0.6;
+    float q = b*(dot(vec4(1.0),s)+b)*0.6125;
     float r = 1.0/(1.0+exp(q));
     b *= float(noise.r>r)*2.0-1.0;
     b  = (b+1.0)/2.0;
@@ -298,8 +293,7 @@ function render() {
 /** 
  * Main script that will run when the website loads
  */
-function main()
-{
+function main() {
     canvas = init_webgl_canvas();
     gl = canvas.gl;
     // Compile shader with new constants needed to index into the tiles texture
@@ -310,7 +304,6 @@ function main()
     copy        = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
     // Create tiles texture
     texture = pixel_art_texture(gl,tiles);
-
     // Prepare texture for game and RNG state 
     options = {
         width:game_w_tiles, 
@@ -323,12 +316,10 @@ function main()
     rng_noise  = newBasicFramebuffer(gl,options);
     rng_temp   = newBasicFramebuffer(gl,options);
     tile_ids   = newBasicFramebuffer(gl,options);
-
     // get GPU random number generator
     gpurng = GPUNoise(gl,{W:game_w_tiles,H:game_h_tiles});
     randomize_framebuffer(rng_noise);
     gpurng(rng_noise,rng_temp);
-
     // Run initializer
     var initial_data  = new Uint8Array(game_n_tiles*4);
     for (var i=0; i<game_n_tiles; i++)
@@ -342,13 +333,11 @@ function main()
     gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,game_w_tiles,game_h_tiles,
                      gl.RGBA,gl.UNSIGNED_BYTE,initial_data);
     gl.bindTexture  (gl.TEXTURE_2D,null);
-
     // Set up UI and start.
     add_event_listeners();
     resizeCanvas();
     //scale_to_screen();
     console.log("Loaded");
-
     // Start an animation loop
     const frame_interval_ms = 1000/10;
     var   then = Date.now();
@@ -358,10 +347,12 @@ function main()
         elapsed = now - then;
         if (elapsed > frame_interval_ms) {
             then = now-(elapsed % frame_interval_ms);
-            // Update game
-            gpurng(rng_noise,rng_temp);
-            game_kernel({game_state:game_state,noise:rng_noise},game_temp);
-            copy(game_temp,game_state);
+            for (var i=0; i<1; i++) {
+                // Update game
+                gpurng(rng_noise,rng_temp);
+                game_kernel({game_state:game_state,noise:rng_noise},game_temp);
+                copy(game_temp,game_state);
+            }
             // One iteration of marching boxes tile shader
             boxes_kernel({game_state:game_state},tile_ids);
             render();
