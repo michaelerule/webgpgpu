@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8"/>
+<!--
+- Fill the screen with the game environment. No scrolling
+- Top portion of screen is game panel, bottom region console
+- Set up a basic web GL canvas environment that we'll use to draw the game
+- Move setup code into a library ("gpgpu")
+- Add bounded rendering region, with view scale and coordinates
+- Add mouse control: drag to pan, scroll wheel to zoom in/out
+- Add keyboard control: arrow keys to pan; +/- PgUp/PgDn to zoom
+- Render an image from texture using nearest-neighbor interpolation
+- Create a 2D game environment based on square tiles
+
+Pixel agents: pixels that act like agents
+
+If nonempty, 
+ - If move request set
+   - Check if move executed
+   - If not, clear flag and continue
+   - If yes, set cell as vacant
+ - Move randomly
+   - Randomly select direction
+   - Set move request flag
+
+If empty: check neighbors
+ - Check move request flag
+ - If no collision, accept move
+ - Update cell as nonempty
+ - Set a moved from flag
+
+Set tile based on state
+
+-->
+<head>
+<script>
+window.addEventListener('load', function() {
+    load_textures();
+})
+</script>
+<script src="./lib/gpgpu.js"></script>
+<script src="./lib/gpurand.js"></script>
+<script src="./lib/parameters.js"></script>
+<script src="./user_event_handlers.js"></script>
+<script src="./webgl_game_initialization_helpers.js"></script>
+<script src="./base64_encoded_textures.js"></script>
+<link rel="stylesheet" type="text/css" href="lessons.css">
+</head>
+<body>
+<div id="outer_container">
+<canvas id="game_canvas" style="height:100%;"></canvas>
+</div>
+
+<!--
+A new shader for the game logic. This operates on a tiled grid, and uses
+color data to save game state
+-->
+<script id="agents_parameters" type="x-shader/x-fragment">
+sampler2D game_state;
+sampler2D noise;
+vec2 game_size;
+</script>
+<script id="agents" type="x-shader/x-fragment">
+// R: symbol ID for tile shader
+// G: agent state. 
+// B:
+// A:
+// Lookup positions of relevant tiles ("characters")
+#define BIGO   64
+#define BLUEO  65
+#define REDO   66
+#define CROSS  67
+#define HEART  68
+#define SKULL  69
+#define HOUSE  70
+#define HOUSE2 71
+#define FLATS  72
+#define EKS    73
+#define SEL    74
+#define FIELD  75
+#define TREE   76
+#define SCRUB  77
+#define GRASS  78
+#define BURNT  79
+#define LEFT   108
+#define RIGHT  109
+#define UP     110
+#define DOWN   111
+#define NONE   240
+#define ONFIRE 241
+
+// USEFUL MACROS
+
+// Random integer from random [0,255] interpreted as float on [0,1]
+#define RANDINT(N,x) (int(x*(float(N)*(255.0/256.0))))
+
+// Interpret float on [0,1] as a byte [0,255] and extract a single bit
+#define BVAL(x,i) (int(mod((x)/pow(2.0,float(i)),2.0))>0)
+
+// Use a one-hot vec4 to select an index from another vec4
+#define SELECT(s,i) (dot(vec4(s), vec4(equal(ivec4(0,1,2,3),ivec4(i)))))
+
+
+// State unpacking routines
+// We get 8 bits of state
+// 01: movement direction
+// 2: is requesting to move
+// 3: has received move
+// 7: agent is present
+#define MOVE_BIT (4)
+#define LOAD_BIT (5)
+#define WAIT_BIT (6)
+#define FULL_BIT (7)
+#define MOVE_MASK (16)
+#define LOAD_MASK (32)
+#define WAIT_MASK (64)
+#define FULL_MASK (128)
+#define ISMOVE(s) (BVAL((s),MOVE_BIT))
+#define ISFULL(s) (BVAL((s),FULL_BIT))
+#define ISLOAD(s) (BVAL((s),LOAD_BIT))
+#define ISWAIT(s) (BVAL((s),WAIT_BIT))
+
+
+// Get 2-bit movement code from state (lowest 2 bits)
+// 0: move up    (negative y)
+// 1: move left  (negative x)
+// 2: move right (positive x)
+// 3: move down  (positive y)
+// Codes for cells moving *into* the current cell
+// Neighbor 0 (above) moving down  (positive y) has code 3
+// Neighbor 1 (left)  moving right (positive x) has code 2
+// Neighbor 2 (right) moving left  (negative y) has code 1
+// Neighbor 3 (below) moving up    (negative y) has code 0
+#define MOVECODE(s) (int(mod(s,4.0)))
+#define MOVE_U (0)
+#define MOVE_L (1)
+#define MOVE_R (2)
+#define MOVE_D (3)
+#define MOVE_INTO_CODES (ivec4(0,2,1,3))
+//3,2,1,0))
+
+// Vectorized versions of the above
+#define BVALS(x,i)   (greaterThan(vec4(ivec4(mod((x)/pow(2.0,float(i)),2.0))),vec4(0.0)))
+#define ISMOVES(s)   (BVALS((s),MOVE_BIT))
+#define ISFULLS(s)   (BVALS((s),FULL_BIT))
+#define ISPULLS(s)   (BVALS((s),LOAD_BIT))
+#define ISWAITS(s)   (BVALS((s),WAIT_BIT))
+#define MOVECODES(s) (ivec4(mod(s,4.0)))
+
+float EncodeFloat( float v ) {
+    return floor(255.0*v+0.5)/255.0;
+}
+float EncodeByte(int i) {
+    return floor(clamp(float(i),0.0,255.0)+0.5)/255.0;
+}
+
+void main() {
+    // Get pixel size in texture coordinates
+    vec2 dx = vec2(1.0/game_size.x,0.0);
+    vec2 dy = vec2(0.0,1.0/game_size.y);
+    // Get current position in texture
+    vec2  p = gl_FragCoord.xy/game_size;
+    // Get noise
+    vec4 noise = texture2D(noise,p);
+    // Get current pixel
+    vec4 s11 = texture2D(game_state,p);
+    // In case something weird happens, clear state
+    gl_FragColor = vec4(float(NONE)/255.0,0.0,0.0,0.0);
+
+    // Get neighborhood
+    vec4 near[4];
+    near[0] = texture2D(game_state,mod(p+1.0-dy,1.0));
+    near[1] = texture2D(game_state,mod(p+1.0-dx,1.0));
+    near[2] = texture2D(game_state,mod(p+dx,1.0));
+    near[3] = texture2D(game_state,mod(p+dy,1.0));
+
+    // State is stored as a uin8 in the green channel
+    // Get state here and at nearby locations
+    float s  = EncodeFloat(s11.g)*255.0;
+    vec4  ns = vec4(EncodeFloat(near[0].g),
+                    EncodeFloat(near[1].g),
+                    EncodeFloat(near[2].g),
+                    EncodeFloat(near[3].g))*255.0;
+    
+    // Unpack state in current location
+    bool cell_full = ISFULL(s);
+    bool cell_load = ISLOAD(s);
+    bool cell_move = ISMOVE(s);
+    bool cell_wait = ISWAIT(s);
+    int  move_code = MOVECODE(s);
+
+    if (!cell_full && cell_load) {
+        // This cell has accepted an agent from a nearby cell
+        cell_full = true;
+        cell_move = cell_load = cell_wait = false;
+    } 
+    else if (cell_full) {
+        // Cell is occupied
+        if (cell_move || cell_wait) {
+            cell_full=cell_move=cell_wait=false;
+            if (cell_move) {
+                cell_move = false;
+                cell_wait = true;
+            } else {
+                // The target might not have accepted
+                float target = SELECT(ns,move_code);
+                if (ISLOAD(target)) {// && MOVECODE(target)==move_code) {
+                    cell_full = false;
+                    cell_wait = false;
+                }
+                else {
+                    cell_full = true;
+                    cell_wait = cell_move = false;
+                }
+            }
+        } else { 
+                move_code = RANDINT(4,noise.g);
+                cell_move = true;
+        }
+        cell_load = false;
+    } else {
+        // Empty cell not already in load state
+        ivec4 f = ivec4(ISFULLS(ns));
+        ivec4 v = ivec4(ISMOVES(ns));
+        ivec4 c = MOVECODES(ns);
+        ivec4 b = v * f * ivec4(equal(c,MOVE_INTO_CODES));
+        if (b.r+b.g+b.b+b.a==1) {
+            cell_load = true;
+            move_code = int(dot(vec4(c), vec4(b)));
+        }
+        cell_full = cell_move = cell_wait = false;
+    }
+    
+
+    // Re-pack state
+    int S = int(clamp(float(move_code),0.0,3.0));
+    if (cell_full) S+=FULL_MASK;
+    if (cell_move) S+=MOVE_MASK;
+    if (cell_load) S+=LOAD_MASK;
+    if (cell_wait) S+=WAIT_MASK;
+
+    int id = (cell_wait)? BLUEO :
+             (cell_move)? (
+                (move_code==MOVE_D)?UP:
+                (move_code==MOVE_U)?DOWN:
+                (move_code==MOVE_L)?LEFT:
+                (move_code==MOVE_R)?RIGHT:EKS
+                ):  
+             (cell_load)? CROSS :
+             (cell_full)? REDO :
+             NONE; 
+    gl_FragColor = vec4(EncodeByte(id),EncodeByte(S),0.0,0.0);
+}
+</script>
+
+<script>
+// Configuration constants.
+// The game size is now defined in terms of tiles. 
+const game_w_tiles = 60;
+const game_h_tiles = 60;
+const game_n_tiles = game_w_tiles*game_h_tiles;
+// We need to know shape of tiles in the tiles texture, as well as
+// how many tiles across it is
+const tile_w_px    = 8;
+const tile_h_px    = 8;
+const tiles_across = 16;
+// Calculated game shape in pixels
+const game_w_px    = game_w_tiles*tile_w_px;
+const game_h_px    = game_h_tiles*tile_h_px;
+// View behavior and limits
+const max_scale    = 8;
+const min_scale    = 1;
+const key_pan      = 10;
+const key_zoom     = 1.1;
+// Global variables (mutable)
+var game_focus_x = game_w_px/2;
+var game_focus_y = game_h_px/2;
+var game_scale   = 2.0;
+
+/**
+ * Render game on canvas using current canvas size, scale, and focus point. 
+ */
+function render() {
+    var w = gl.canvas.width;
+    var h = gl.canvas.height;
+    gl.viewport(0,0,w,h);
+    var s = 1.0/game_scale;
+    var x = Math.floor(game_focus_x-w/2*s);
+    var y = Math.floor(game_focus_y-h/2*s);
+    tile_shader({tiles:texture,tile_ids:game_state,view_transform:[x,y,s],select:[-1,-1]});
+    // For now show the raw game state
+    //copy(game_state);
+};
+
+/** 
+ * Main script that will run when the website loads
+ */
+function main()
+{
+    canvas = init_webgl_canvas();
+    gl = canvas.gl;
+    // Compile shader with new constants needed to index into the tiles texture
+    tile_shader = get_tile_shader(gl,game_w_tiles,game_h_tiles,tile_w_px,tile_h_px,tiles_across);
+    // Get game program, initializer, and copy program
+    game_kernel = bind_program(gl,"agents",{game_size:[game_w_tiles,game_h_tiles]});
+    copy        = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
+    // Create tiles texture
+    texture = pixel_art_texture(gl,tiles);
+
+    // Prepare texture for game and RNG state 
+    options = {
+        width:game_w_tiles, 
+        height:game_h_tiles, 
+        mag_filter:gl.NEAREST, 
+        min_filter:gl.LINEAR, 
+        wrap:gl.CLAMP_TO_EDGE}
+    game_state = newBasicFramebuffer(gl,options);
+    game_temp  = newBasicFramebuffer(gl,options);
+    rng_noise  = newBasicFramebuffer(gl,options);
+    rng_temp   = newBasicFramebuffer(gl,options);
+
+    // get GPU random number generator
+    gpurng = GPUNoise(gl,{W:game_w_tiles,H:game_h_tiles});
+    randomize_framebuffer(rng_noise);
+    gpurng(rng_noise,rng_temp);
+
+    // Run initializer
+    var initial_data  = new Uint8Array(game_n_tiles*4);
+    for (var i=0; i<game_n_tiles; i++)
+    {
+        initial_data[i*4+0] = 240;
+        initial_data[i*4+1] = Math.random()>0.25?128:0;
+        initial_data[i*4+2] = 0;
+        initial_data[i*4+3] = 255;
+    }    
+    gl.bindTexture  (gl.TEXTURE_2D,game_state.texture);
+    gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,game_w_tiles,game_h_tiles,
+                     gl.RGBA,gl.UNSIGNED_BYTE,initial_data);
+    gl.bindTexture  (gl.TEXTURE_2D,null);
+
+    // Set up UI and start.
+    add_event_listeners();
+    resizeCanvas();
+    //scale_to_screen();
+    console.log("Loaded");
+
+    // Start an animation loop
+    const frame_interval_ms = 1000/25;
+    var   then = Date.now();
+    function animate(){
+        requestAnimationFrame(animate);
+        now     = Date.now();
+        elapsed = now - then;
+        if (elapsed > frame_interval_ms) {
+            then = now-(elapsed % frame_interval_ms);
+            // Update game
+            for (var i=0; i<2; i++) {
+                gpurng(rng_noise,rng_temp);
+                game_kernel({game_state:game_state,noise:rng_noise},game_temp);
+                copy(game_temp,game_state);
+            }
+            render();
+        }
+    }
+    animate();
+
+}
+
+/**
+ * Load tiles image from base64 string.
+ * We wait until the image loads before initializing the WebGL environment.
+ * We achieve this by calling main() from the textures "onload" callback.
+ */
+function load_textures() {
+    tiles = new Image();
+    tiles.crossOrigin = "anonymous";
+    tiles.onload = main;
+    tiles.src = base64_textures.tiles;
+}
+</script>
+</body>
+</htlm>

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8"/>
+<!--
+- Fill the screen with the game environment. No scrolling
+- Top portion of screen is game panel, bottom region console
+- Set up a basic web GL canvas environment that we'll use to draw the game
+- Move setup code into a library ("gpgpu")
+- Add bounded rendering region, with view scale and coordinates
+- Add mouse control: drag to pan, scroll wheel to zoom in/out
+- Add keyboard control: arrow keys to pan; +/- PgUp/PgDn to zoom
+- Render an image from texture using nearest-neighbor interpolation
+- Create a 2D game environment based on square tiles
+
+Pixel bittest wasn't working, maybe because bit packing was broken? 
+
+Goal here: generate some random bytes, send them to the GPU and back, and 
+confirm that there was no loss of data. 
+
+-->
+<head>
+<script>window.addEventListener('load', function() {load_textures();})</script>
+<script src="./lib/gpgpu.js"></script>
+<script src="./lib/gpurand.js"></script>
+<script src="./lib/parameters.js"></script>
+<script src="./user_event_handlers.js"></script>
+<script src="./webgl_game_initialization_helpers.js"></script>
+<script src="./base64_encoded_textures.js"></script>
+<link rel="stylesheet" type="text/css" href="lessons.css">
+</head>
+<body>
+<div id="outer_container">
+<canvas id="game_canvas" style="height:100%;"></canvas>
+</div>
+
+<script id="bittest_parameters" type="x-shader/x-fragment">
+sampler2D game_state;
+sampler2D noise;
+vec2 game_size;
+</script>
+<script id="bittest" type="x-shader/x-fragment">
+#define BLUEO  65
+#define EKS    73
+
+// USEFUL MACROS
+
+// Random integer from random [0,255] interpreted as float on [0,1]
+#define RANDINT(N,x) (int(x*(float(N)*(255.0/256.0))))
+
+// Interpret float on [0,1] as a byte [0,255] and extract a single bit
+#define BVAL(x,i) (int(mod((x)/pow(2.0,float(i)),2.0))>0)
+
+// Use a one-hot vec4 to select an index from another vec4
+#define SELECT(s,i) (dot(vec4(s), vec4(equal(ivec4(0,1,2,3),ivec4(i)))))
+
+float EncodeFloat( float v ) {
+    return floor(255.0*v+0.5)/255.0;
+}
+
+float EncodeByte(int i) {
+    //return floor(clamp(float(i),0.0,255.0)+0.5)/255.0;
+    return floor(clamp(float(i),0.0,255.0)+0.5)/255.0;
+}
+
+void main() {
+    // Get pixel size in texture coordinates
+    vec2 dx = vec2(1.0/game_size.x,0.0);
+    vec2 dy = vec2(0.0,1.0/game_size.y);
+    // Get current position in texture
+    vec2  p = gl_FragCoord.xy/game_size;
+    // Get noise
+    vec4 noise = texture2D(noise,p);
+
+    // Get current pixel
+    vec4 s11 = texture2D(game_state,p);
+
+    float s = EncodeFloat(s11.a)*255.0;
+
+    bool b0 = BVAL(s,0);
+    bool b1 = BVAL(s,1);
+    bool b2 = BVAL(s,2);
+    bool b3 = BVAL(s,3);
+    bool b4 = BVAL(s,4);
+    bool b5 = BVAL(s,5);
+    bool b6 = BVAL(s,6);
+    bool b7 = BVAL(s,7);
+    
+    int S = 0;//int(s);
+
+    if (b0) S+=1;
+    if (b1) S+=2;
+    if (b2) S+=4;
+    if (b3) S+=8;
+    if (b4) S+=16;
+    if (b5) S+=32;
+    if (b6) S+=64;
+    if (b7) S+=128;
+
+    int id = EncodeFloat(s11.a)==EncodeByte(S)? BLUEO : EKS;
+
+    gl_FragColor = vec4(EncodeByte(id),EncodeByte(S),EncodeByte(S),s11.a);
+}
+</script>
+
+<script>
+// Configuration constants.
+// The game size is now defined in terms of tiles. 
+const game_w_tiles = 8;
+const game_h_tiles = 8;
+const game_n_tiles = game_w_tiles*game_h_tiles;
+// We need to know shape of tiles in the tiles texture, as well as
+// how many tiles across it is
+const tile_w_px    = 8;
+const tile_h_px    = 8;
+const tiles_across = 16;
+// Calculated game shape in pixels
+const game_w_px    = game_w_tiles*tile_w_px;
+const game_h_px    = game_h_tiles*tile_h_px;
+// View behavior and limits
+const max_scale    = 8;
+const min_scale    = 1;
+const key_pan      = 10;
+const key_zoom     = 1.1;
+// Global variables (mutable)
+var game_focus_x = game_w_px/2;
+var game_focus_y = game_h_px/2;
+var game_scale   = 4.0;
+
+/**
+ * Render game on canvas using current canvas size, scale, and focus point. 
+ */
+function render() {
+    var w = gl.canvas.width;
+    var h = gl.canvas.height;
+    gl.viewport(0,0,w,h);
+    var s = 1.0/game_scale;
+    var x = Math.floor(game_focus_x-w/2*s);
+    var y = Math.floor(game_focus_y-h/2*s);
+    tile_shader({tiles:texture,tile_ids:game_state,view_transform:[x,y,s],select:[-1,-1]});
+    // For now show the raw game state
+    //copy(game_state);
+};
+
+/** 
+ * Main script that will run when the website loads
+ */
+function main()
+{
+    canvas      = init_webgl_canvas();
+    gl          = canvas.gl;
+    tile_shader = get_tile_shader(gl,game_w_tiles,game_h_tiles,tile_w_px,tile_h_px,tiles_across);
+    game_kernel = bind_program(gl,"bittest",{game_size:[game_w_tiles,game_h_tiles]});
+    copy        = GPUcopy(gl,{W:game_w_tiles,H:game_h_tiles})
+    texture     = pixel_art_texture(gl,tiles);
+    options     = {
+        width     : game_w_tiles, 
+        height    : game_h_tiles, 
+        mag_filter: gl.NEAREST, 
+        min_filter: gl.LINEAR, 
+        wrap      : gl.CLAMP_TO_EDGE}
+    game_state = newBasicFramebuffer(gl,options);
+    game_temp  = newBasicFramebuffer(gl,options);
+    rng_noise  = newBasicFramebuffer(gl,options);
+    rng_temp   = newBasicFramebuffer(gl,options);
+
+    // get GPU random number generator
+    gpurng = GPUNoise(gl,{W:game_w_tiles,H:game_h_tiles});
+    randomize_framebuffer(rng_noise);
+    gpurng(rng_noise,rng_temp);
+
+    // Define test data
+    var test_data = new Uint8Array(game_n_tiles);
+    for (var i=0; i<game_n_tiles; i++)
+        test_data[i] = i;
+
+    // Move test data to GPU
+    var initial_data  = new Uint8Array(game_n_tiles*4);
+    for (var i=0; i<game_n_tiles; i++) {
+        initial_data[i*4+0] = Math.floor(Math.random()*256);
+        initial_data[i*4+1] = Math.floor(Math.random()*256);
+        initial_data[i*4+2] = Math.floor(Math.random()*256);
+        initial_data[i*4+3] = test_data[i];
+    }    
+    gl.bindTexture  (gl.TEXTURE_2D,game_state.texture);
+    gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,game_w_tiles,game_h_tiles,
+                     gl.RGBA,gl.UNSIGNED_BYTE,initial_data);
+    gl.bindTexture  (gl.TEXTURE_2D,null);
+
+    // Run the game kernel
+    game_kernel({game_state:game_state,noise:rng_noise},game_temp);
+    copy(game_temp,game_state);
+
+    // Copy data back
+    gl.bindFramebuffer(gl.FRAMEBUFFER, game_state);
+    gl.bindTexture(gl.TEXTURE_2D, game_state.texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false)
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false)
+    var read = new Uint8Array(game_n_tiles*4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, game_state);
+    gl.readPixels(0,0,game_w_tiles,game_h_tiles,gl.RGBA,gl.UNSIGNED_BYTE,read);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    // Green channel should now match blue channel
+    errors = 0;
+    for (var i=0; i<game_n_tiles; i++) {
+        if (read[i*4+1] != test_data[i]) errors++;
+    }
+    console.log('There were '+errors+' errors');
+    //window.alert('There were '+errors+' errors');
+    console.log(read);
+
+    // Set up UI and start.
+    add_event_listeners();
+    resizeCanvas();
+    //scale_to_screen();
+    console.log("Loaded");
+
+    // Start an animation loop
+    const frame_interval_ms = 750;
+    var   then = Date.now();
+    function animate(){
+        requestAnimationFrame(animate);
+        now     = Date.now();
+        elapsed = now - then;
+        if (elapsed > frame_interval_ms) {
+            then = now-(elapsed % frame_interval_ms);
+            // Update game
+            gpurng(rng_noise,rng_temp);
+            game_kernel({game_state:game_state,noise:rng_noise},game_temp);
+            copy(game_temp,game_state);
+            render();
+        }
+    }
+    animate();
+
+}
+
+/**
+ * Load tiles image from base64 string.
+ * We wait until the image loads before initializing the WebGL environment.
+ * We achieve this by calling main() from the textures "onload" callback.
+ */
+function load_textures() {
+    tiles = new Image();
+    tiles.crossOrigin = "anonymous";
+    tiles.onload = main;
+    tiles.src = base64_textures.tiles;
+}
+</script>
+</body>
+</htlm>
