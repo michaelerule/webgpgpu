@@ -215,11 +215,11 @@ Using only 8-bit color data to store state values means that these neural field 
 <table>
 <tr><td width='120'><a href="./examples/wilson_cowan_examples/WC_Example_1_basic.html"><img src='./examples/example_previews/WCexample1.png' width='100'/></a></td>
 <td><a href="./examples/wilson_cowan_examples/WC_Example_1_basic.html"><h4>Example 1: "Wilson-Cowan equations"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/WC_Example_1_basic.html">run in browser</a>)
+(<a href="http://michaelerule.github.io/webgpgpu/examples/wilson_cowan_examples/WC_Example_1_basic.html">run in browser</a>)
 <break/>
 Spiral wave emerge in a Wilson-Cowan neural field model. The lack of platform-specified rounding in WebGL means that these patteerns to not appear correcrtly on all devices (see example 2). 
 </td></tr>
-<tr><td><a href="./examples/WC_Example_2_platform_independent_rounding.html"><img src='./examples/example_previews/WCexample2.png' width='100'/></a></td>
+<tr><td><a href="./examples/wilson_cowan_examples/WC_Example_2_platform_independent_rounding.html"><img src='./examples/example_previews/WCexample2.png' width='100'/></a></td>
 <td><a href="./examples/wilson_cowan_examples/WC_Example_2_platform_independent_rounding.html"><h4>Example 2: "Platform independent rounding"</h4></a>
 (<a href="http://michaelerule.github.io/webgpgpu/examples/wilson_cowan_examples/WC_Example_2_platform_independent_rounding.html">run in browser</a>)
 <break/>
@@ -227,7 +227,7 @@ Spiral wave emerge in a Wilson-Cowan neural field model. Additional macros enfor
 </td></tr>
 <tr><td><a href="./examples/wilson_cowan_examples/WC_Example_3_wilson_cowan_center_surround.html"><img src='./examples/example_previews/WCexample3.png' width='100'/></a></td>
 <td><a href="./examples/wilson_cowan_examples/WC_Example_3_wilson_cowan_center_surround.html"><h4>Example 3: "Center-surround"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/WC_Example_3_wilson_cowan_center_surround.html">run in browser</a>)
+(<a href="http://michaelerule.github.io/webgpgpu/examples/wilson_cowan_examples/WC_Example_3_wilson_cowan_center_surround.html">run in browser</a>)
 <break/>
 Center surround "mexican hat" style coupling leads to the emergence of striped patterns in a Wilson-Cowan system.
 </td></tr>

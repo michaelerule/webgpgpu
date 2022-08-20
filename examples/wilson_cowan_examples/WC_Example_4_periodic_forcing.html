@@ -23,26 +23,30 @@ void main() {
 <script id="wc" type="x-shader/x-fragment">
 uniform sampler2D Uin;
 uniform sampler2D Uconv;
+uniform sampler2D noise;
 uniform float s;
 #define DE (dt/Te)
 #define DI (dt/Ti)
 float F(float x) {return 1./(1.+exp(-x));}
 float EncodeFloat( float v ) {return floor(255.*v+0.5)/255.;}
 void main() {
-    vec2 XY = gl_FragCoord.xy/vec2(W,H);
-    vec4 U  = texture2D(Uin   ,XY);
-    vec4 Uc = texture2D(Uconv ,XY);
+    vec2  XY  = gl_FragCoord.xy/vec2(W,H);
+    vec4  U   = texture2D(Uin   ,XY);
+    vec4  Uc  = texture2D(Uconv ,XY);
+    vec4  Xi  = texture2D(noise ,XY);
     float Ue  = U.r;
     float Ui  = U.g;
     float Uec = Uc.r;
     float Uic = Uc.g;
-    float Ve = F(Aee*Uec-Aie*Uic-He+s);
-    float Vi = F(Aei*Uec-Aii*Uic-Hi);
+    float Ne  = Xi.r;
+    float Ni  = Xi.g;
+    float Ve  = F(Aee*Uec-Aie*Uic-He+s+ne*(Ne-0.5));
+    float Vi  = F(Aei*Uec-Aii*Uic-Hi+ni*(Ni-0.5));
     Ue += (Ve-Ue)*DE;
     Ui += (Vi-Ui)*DI;
     gl_FragColor = vec4(
-        EncodeFloat(Ue),
-        EncodeFloat(Ui),
+        EncodeFloat(clamp(Ue+(Ne-0.5)/256.0,0.,1.)),
+        EncodeFloat(clamp(Ui+(Ni-0.5)/256.0,0.,1.)),
         abs(Ue-Ui)*3.0,
         1.);
 }
@@ -59,47 +63,58 @@ function main()
     if (!gl) OUT;
 
     parameters = {
-      dt : '1.0',
+      dt : '0.2',
       Te : '10.0',
       Ti : '20.0',
+      Aee :'10.0',
       Aei :'12.0',
-      Aii :'3.0',
-      Aee :'10.5',
       Aie :'8.5',
+      Aii :'3.0',
       Hi  :'3.5',
-      He  :'2.0'
+      He  :'2.0',
+      ne  :'0.05',
+      ni  :'0.05',
     };
     var wc  = getRasterProgram(gl,'wc',parameters);
 
     var render = getRasterProgram(gl,'draw-input');
     var map    = getRasterProgram(gl,'retinalmap');
     var copy   = GPUcopy(gl);
-    var blur   = GPUGaussianMultiBlur(gl,1,2,1,1);
+    var sigma  = 2;
+    var blur   = GPUGaussianMultiBlur(gl,sigma,2.5*sigma,1,1);
     console.log(blur.kernel)
 
-    var noise  = GPUNoise(gl);
-
-    var temp = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
-    var U  = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
-    var UC = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
-
-    noise.randomize( U );
+    var temp  = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var U     = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var UC    = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var noise = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var rng   = GPUNoise(gl);
+    rng.randomize( U );
+    rng.randomize( noise );
 
     var t = 0;
     function animate() {
         setTimeout(function(){
-            for (var i=0; i<1; i++) {
+            console.log(time,stimulus);
+            for (var i=0; i<10; i++) {
+                t += Number(parameters['dt']);
+                var freq     = 8.00; // Hz
+                var time     = t/1000.0; // seconds
+                var phase    = time*2*3.1415926; // radians*seconds
+                var stimulus = 0.8*(Math.sign(Math.sin(phase*freq)-0.8)+1)/2.0;
+                
+                rng(noise,temp);
                 blur(U,temp,UC);
                 wc({
-                    s : .3*(Math.sign(Math.sin(t*3.1415926*6.85/500.))+1),
+                    s     : stimulus,
                     Uin   :U,
                     Uconv :UC,
+                    noise :noise,
                     },temp);
                 copy(temp,U);
             }
             copy(temp);
             //map({data:temp})
-            t += Number(parameters['dt']);
             requestAnimationFrame(animate);
         },0);
     }
