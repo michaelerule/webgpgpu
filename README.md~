@@ -299,9 +299,7 @@ Tests random number generation and renders noisy pixels as randomly selected til
   
 <tr><td width='120'><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_11_game_of_life.html"><img src='https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot_2020-10-14_22-16-04.png' width='100'/></a></td>
 <td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_11_game_of_life.html"><h4>Game Example 11: "Game of Life"</h4></a>
-(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_11_game_of_life.html">run in browser</a>; 
-<a href="https://michaelerule.github.io/webgpgpu/games/lesson_11_game_of_life_large.html">large</a>;
-<a href="https://michaelerule.github.io/webgpgpu/games/lesson_11_game_of_life_small_for_mobile.html">small for mobile</a>)
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_11_game_of_life.html">run in browser</a>)
 <break/>
 Conway's game-of-life with a wacky tile shader. Dying cells are skulls. Colors diffuse outward from living areas.
 </td></tr>
