@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html><head>
+<script src="../../lib/gpgpu.js"></script>
+<script src="../../lib/gpugaussian.js"></script>
+<script src="../../lib/gpurand.js"></script>
+<script id="rescale" type="x-shader/x-fragment">
+uniform sampler2D data;
+uniform vec2 scale;
+uniform vec2 shift;
+void main() {
+    vec2 pxy = shift+gl_FragCoord.xy*scale;
+    pxy.x = 1.0-pxy.x; // Mirror
+    gl_FragColor = texture2D(data,pxy);
+}
+</script>
+<script id="laplacian" type="x-shader/x-fragment">
+uniform sampler2D data;
+void main() {
+    vec2 delta = 1.0/vec2(512,512);
+    vec2 pxy = gl_FragCoord.xy*delta;
+    vec4 c =
+      -(10.0/3.0)*texture2D(data,pxy) + 
+        (2.0/3.0)*texture2D(data,pxy+vec2( 0.0,-1.0)*delta) + 
+        (2.0/3.0)*texture2D(data,pxy+vec2( 0.0, 1.0)*delta) + 
+        (2.0/3.0)*texture2D(data,pxy+vec2(-1.0, 0.0)*delta) + 
+        (2.0/3.0)*texture2D(data,pxy+vec2( 1.0, 0.0)*delta) + 
+        (1.0/6.0)*texture2D(data,pxy+vec2(-1.0,-1.0)*delta) + 
+        (1.0/6.0)*texture2D(data,pxy+vec2( 1.0,-1.0)*delta) + 
+        (1.0/6.0)*texture2D(data,pxy+vec2(-1.0, 1.0)*delta) + 
+        (1.0/6.0)*texture2D(data,pxy+vec2( 1.0, 1.0)*delta);
+    gl_FragColor = vec4(0.5+c.xyz,1.0);
+}
+</script>
+<script id="draw-input" type="x-shader/x-fragment">
+void main() {
+    float cx1 = mod(floor(gl_FragCoord.x/64.),2.);
+    float cy1 = mod(floor(gl_FragCoord.y/64.),2.);
+    float cx2 = mod(floor(gl_FragCoord.x/32.),2.);
+    float cy2 = mod(floor(gl_FragCoord.y/32.),2.);
+    float cx3 = mod(floor(gl_FragCoord.x/128.),2.);
+    float cy3 = mod(floor(gl_FragCoord.y/128.),2.);
+    gl_FragColor = vec4(
+        mod(cx1+cy1,2.),
+        mod(cx2+cy2,2.),
+        mod(cx3+cy3,2.),1);
+}
+</script>
+
+<script id="memoryV" type="x-shader/x-fragment">
+uniform sampler2D data;
+uniform sampler2D V;
+uniform sampler2D LV;
+uniform sampler2D noise;
+#define THETA (1.2)
+#define DECAY (0.98)
+#define CH (cos(THETA)*DECAY)
+#define SH (sin(THETA)*DECAY)
+#define DT (0.5)
+vec3 EncodeFloat( vec3 v ) {
+  return floor(255.*v+0.5)/255.;
+}
+void main() {
+    vec2 delta = 1.0/vec2(512,512);
+    vec2 pxy   = gl_FragCoord.xy*delta;
+    vec3 data  = texture2D(data   ,pxy).xyz-0.5;
+    vec3 v     = texture2D(V,pxy).xyz-0.5;
+    vec3 Lv    = texture2D(LV,pxy).xyz-0.5;
+    vec3 eta   = texture2D(noise,pxy).xyz-(114.45/256.0);
+    // Once |DT*Lv| < O(1/256) we can't evolve forward
+    // Dithering helps
+    vec3 v2    = v + DT*Lv + 0.00390625*eta;
+    //v2 = DECAY*v2 + (1.0-DECAY)*data;
+    gl_FragColor = vec4(EncodeFloat(0.5+v2),1.0);
+}
+</script>
+
+<script>
+function main() {
+    // WebGL canvas and camera capture
+    var gl   = getRasterGL($("canvas")); if (!gl) OUT;
+    var cam  = getcam(gl);
+    
+    // Shader programs
+    var copy    = GPUcopy(gl);
+    var rescale = buildRasterProgram(gl,$('rescale'  ).text);
+    var stepV   = buildRasterProgram(gl,$('memoryV'  ).text);
+    var laplace = buildRasterProgram(gl,$('laplacian').text);
+    var blur    = GPUGaussianMultiBlur(gl,1,1,1,0);
+    
+    // Buffers
+    var texture = cam.texture;
+    var MINISIZE = 512;
+    var buffer0  = newBasicFramebuffer(gl,{width:MINISIZE, height:MINISIZE, wrap : gl.REPEAT});
+    var buffer1 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var buffer2 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var buffer3 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var bufferV = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var bufferLV= newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    
+    // Prepare GPU random number generator
+    console.log('initializing RNG');
+    var gpurng = GPUNoise(gl);
+    var noise  = newBasicFramebuffer(gl,{wrap:gl.REPEAT});
+    gpurng.randomize(noise);
+    console.log('initializing RNG done');
+
+    var render = getRasterProgram(gl,'draw-input');
+    render( {}, bufferV );
+    blur(bufferV,buffer2,bufferV);
+        
+    function animate(){
+        setTimeout(animate,50); 
+        //requestAnimationFrame(animate);
+        
+        // Capture camera frame and crop
+        cam.next();
+        let vw = cam.videoWidth;
+        let vh = cam.videoHeight;
+        console.log(vw,vh);
+        if (!(vw>0&&vh>0)) return;
+        if (vw>vh) {
+            scale = [1.0/MINISIZE*vh/vw, 1.0/MINISIZE];
+            shift = [(vw-vh)/2/vw,0]
+        } else {
+            scale = [1.0/MINISIZE, 1.0/MINISIZE*vw/vh];
+            shift = [0,(vh-vw)/2/vh]
+        }
+        rescale({"data":texture, "scale":scale, "shift":shift}, buffer0);
+        
+        // draw random numbers (use for dithering)
+        gpurng(noise,buffer0);
+        
+        // Step equation
+        laplace({"data":bufferV},bufferLV);
+        blur(bufferLV,buffer2,bufferLV);
+        stepV({"data":buffer0,"V":bufferV,"LV":bufferLV,"noise":noise},buffer2); copy(buffer2,bufferV);
+        
+        copy(bufferV);
+    }
+    animate();
+}
+function getcam(gl) {
+    let c = document.getElementById("cam");
+    navigator.mediaDevices.getUserMedia({video:1,audio:0}).then(
+        (s)=>{try{if('srcObject' in c)c.srcObject=s;
+        else c.src=window.URL.createObjectURL(s); c.play();}
+        catch(e){c.src=s;}},console.log);
+    c.gl = gl;
+    c.texture = image_texture(gl,c);
+    c.next = ()=>{
+        gl.bindTexture(gl.TEXTURE_2D, c.texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);    
+    };
+    return c;
+}
+</script></head>
+<body onload="javascript:main()">
+<canvas id='canvas' style="width:512px;height:512px;"></canvas>
+<video id='cam' visible="False" style="width: 512px; height: 512px; display:none;" controls="true" playsinline="" crossorigin="anonymous"></video>
+</body>
+</html>

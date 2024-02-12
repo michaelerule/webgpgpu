@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html><head>
+<script src="../../lib/gpgpu.js"></script>
+<script src="../../lib/gpugaussian.js"></script>
+<script src="../../lib/gpurand.js"></script>
+<script id="draw-input" type="x-shader/x-fragment">
+void main() {
+    float cx1 = mod(floor(gl_FragCoord.x/64.),2.);
+    float cy1 = mod(floor(gl_FragCoord.y/64.),2.);
+    float cx2 = mod(floor(gl_FragCoord.x/32.),2.);
+    float cy2 = mod(floor(gl_FragCoord.y/32.),2.);
+    float cx3 = mod(floor(gl_FragCoord.x/128.),2.);
+    float cy3 = mod(floor(gl_FragCoord.y/128.),2.);
+    gl_FragColor = vec4(
+        mod(cx1+cy1,2.),
+        mod(cx2+cy2,2.),
+        mod(cx3+cy3,2.),1);
+}
+</script>
+<script id="rescale" type="x-shader/x-fragment">
+uniform sampler2D data;
+uniform vec2 scale;
+uniform vec2 shift;
+void main() {
+    vec2 pxy = shift+gl_FragCoord.xy*scale;
+    pxy.x = 1.0-pxy.x; // Mirror
+    gl_FragColor = texture2D(data,pxy);
+}
+</script>
+<script id="laplacian" type="x-shader/x-fragment">
+uniform sampler2D data;
+void main() {
+    vec2 delta = 1.0/vec2(512,512);
+    vec2 pxy = gl_FragCoord.xy*delta;
+    vec4 c =
+      -(10.0/3.0)*texture2D(data,pxy) + 
+        (2.0/3.0)*texture2D(data,pxy+vec2( 0.0,-1.0)*delta) + 
+        (2.0/3.0)*texture2D(data,pxy+vec2( 0.0, 1.0)*delta) + 
+        (2.0/3.0)*texture2D(data,pxy+vec2(-1.0, 0.0)*delta) + 
+        (2.0/3.0)*texture2D(data,pxy+vec2( 1.0, 0.0)*delta) + 
+        (1.0/6.0)*texture2D(data,pxy+vec2(-1.0,-1.0)*delta) + 
+        (1.0/6.0)*texture2D(data,pxy+vec2( 1.0,-1.0)*delta) + 
+        (1.0/6.0)*texture2D(data,pxy+vec2(-1.0, 1.0)*delta) + 
+        (1.0/6.0)*texture2D(data,pxy+vec2( 1.0, 1.0)*delta);
+    gl_FragColor = vec4(0.5+c.xyz,1.0);
+}
+</script>
+<script id="lag" type="x-shader/x-fragment">
+uniform sampler2D U;
+uniform sampler2D X;
+uniform sampler2D noise;
+uniform float alpha;
+vec3 EncodeFloat(vec3 v) {return floor(255.*v+0.5)/255.;}
+void main() {
+    vec2 pxy = gl_FragCoord.xy/vec2(W,H);
+    vec3 u   = texture2D(U,pxy).xyz;
+    vec3 x   = texture2D(X,pxy).xyz;
+    vec3 eta = texture2D(noise,pxy).xyz-(114.45/256.0);
+    vec3 x2  = alpha*x + (1.0-alpha)*u + 0.00390625*eta;
+    gl_FragColor = vec4(EncodeFloat(x2),1.0);
+}
+</script>
+<script id="difference" type="x-shader/x-fragment">
+uniform sampler2D Ufast;
+uniform sampler2D Uslow;
+vec3 EncodeFloat(vec3 v) {return floor(255.*v+0.5)/255.;}
+void main() {
+    vec2 pxy = gl_FragCoord.xy/vec2(W,H);
+    vec3 u   = texture2D(Ufast,pxy).xyz;
+    vec3 v   = texture2D(Uslow,pxy).xyz;
+    gl_FragColor = vec4(EncodeFloat(u-v+0.5),1.0);
+}
+</script>
+
+<script id="rotateX" type="x-shader/x-fragment">
+uniform sampler2D X,Y,LX,LY;
+uniform float ch, sh;
+#define dt (0.5)
+void main() {
+    vec2 pxy = gl_FragCoord.xy/vec2(W,H);
+    vec3 x  = texture2D(X ,pxy).xyz-0.5;
+    vec3 y  = texture2D(Y ,pxy).xyz-0.5;
+    vec3 lx = texture2D(LX,pxy).xyz-0.5;
+    vec3 ly = texture2D(LY,pxy).xyz-0.5;
+    float alpha = length(sqrt(x*x+y*y));
+    float gamma = alpha > 1.0? 0.98 : 1.01;
+    vec3 x2 = x+dt*lx;
+    vec3 y2 = y+dt*ly;
+    gl_FragColor = vec4(gamma*(ch*x2+sh*y2)+0.5,1.0);
+}
+</script>
+<script id="rotateY" type="x-shader/x-fragment">
+uniform sampler2D X,Y,LX,LY;
+uniform float ch, sh;
+#define dt (0.5)
+void main() {
+    vec2 pxy = gl_FragCoord.xy/vec2(W,H);
+    vec3 x  = texture2D(X ,pxy).xyz-0.5;
+    vec3 y  = texture2D(Y ,pxy).xyz-0.5;
+    vec3 lx = texture2D(LX,pxy).xyz-0.5;
+    vec3 ly = texture2D(LY,pxy).xyz-0.5;
+    float alpha = length(sqrt(x*x+y*y));
+    float gamma = alpha > 1.0? 0.98 : 1.01;
+    vec3 x2 = x+dt*lx;
+    vec3 y2 = y+dt*ly;
+    gl_FragColor = vec4(gamma*(ch*y2-sh*x2)+0.5,1.0);
+}
+</script>
+<script id="update" type="x-shader/x-fragment">
+uniform sampler2D U,X;
+void main() {
+    vec2 pxy = gl_FragCoord.xy/vec2(W,H);
+    vec3 u  = texture2D(U,pxy).xyz-0.5;
+    vec3 x  = texture2D(X,pxy).xyz-0.5;
+    float alpha = length(u)*2.0;
+    vec3 x2 = (1.0-alpha)*x - alpha*u*15.0;
+    gl_FragColor = vec4(x2+0.5,1.0);
+}
+</script>
+<script id="dephase" type="x-shader/x-fragment">
+uniform sampler2D X,Y;
+uniform float ch, sh;
+void main() {
+    vec2 pxy = gl_FragCoord.xy/vec2(W,H);
+    vec3 x = texture2D(X,pxy).xyz-0.5;
+    vec3 y = texture2D(Y,pxy).xyz-0.5;
+    gl_FragColor = vec4(ch*x+sh*y+0.5,1.0);
+}
+</script>
+
+
+<script>
+function main() {
+    // WebGL canvas and camera capture
+    var gl   = getRasterGL($("canvas")); if (!gl) OUT;
+    var cam  = getcam(gl);
+    
+    // Shader programs
+    var copy      = GPUcopy(gl);
+    var rescale   = buildRasterProgram(gl,$('rescale'  ).text);
+    var lagged    = buildRasterProgram(gl,$('lag'      ).text);
+    var laplacian = buildRasterProgram(gl,$('laplacian').text);
+    var diff      = buildRasterProgram(gl,$('difference').text);
+    var rx        = buildRasterProgram(gl,$('rotateX').text);
+    var ry        = buildRasterProgram(gl,$('rotateY').text);
+    var update    = buildRasterProgram(gl,$('update').text);
+    var dephase   = buildRasterProgram(gl,$('dephase').text);
+    var blurA     = GPUGaussianMultiBlur(gl,0.9);
+    var blurB     = GPUGaussianMultiBlur(gl,1.0);
+    var blurC     = GPUGaussianMultiBlur(gl,0.1);
+    var blurD     = GPUGaussianMultiBlur(gl,3.2);
+    
+    // Buffers
+    var texture = cam.texture;
+    var MINISIZE = 512;
+    var buffer0 = newBasicFramebuffer(gl,{width:MINISIZE, height:MINISIZE, wrap : gl.REPEAT});
+    var buffer1 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var buffer2 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var buffer3 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    
+    // Delay-based differentiator
+    var temp  = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var lagA1 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var lagA2 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var lagB1 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var lagB2 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var delta = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    
+    // Prepare GPU random number generator
+    console.log('initializing RNG');
+    var gpurng = GPUNoise(gl);
+    var noise  = newBasicFramebuffer(gl,{wrap:gl.REPEAT});
+    gpurng.randomize(noise);
+    console.log('initializing RNG done');
+
+    // Oscillating variabels
+    var X = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var Y = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var LX = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var LY = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var tempX = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var tempY = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    // Initial conditions
+    //var render = getRasterProgram(gl,'draw-input');
+    //render( {}, X );
+        
+    // Slow-fast time derivative parameters
+    alphaA = 0.2;
+    alphaB = 0.75;
+        
+    // Oscillation parameters
+    let decay = 1.0;
+    let theta = -0.5;
+    let ch = decay*Math.cos(theta);
+    let sh = decay*Math.sin(theta);
+    
+    var phi = 0.0;
+        
+    function animate(){
+        setTimeout(animate,50); //requestAnimationFrame(animate);
+        gpurng(noise,buffer0);
+        
+        // Capture camera frame and crop
+        cam.next();
+        let vw=cam.videoWidth;
+        let vh=cam.videoHeight;
+        if (!(vw>0&&vh>0)) return;
+        if (vw>vh) {g=[1/MINISIZE*vh/vw,1/MINISIZE];b=[(vw-vh)/2/vw,0]}
+        else       {g=[1/MINISIZE,1/MINISIZE*vw/vh];b=[0,(vh-vw)/2/vh]}
+        rescale({"data":texture, "scale":g, "shift":b}, buffer0);
+        // Slow
+        lagged({'U':buffer0,'X':lagA1,'noise':noise,'alpha':alphaA},temp);copy(temp,lagA1);
+        blurA(lagA1,temp,lagA1);
+        lagged({'U':lagA1  ,'X':lagA2,'noise':noise,'alpha':alphaA},temp);copy(temp,lagA2);
+        blurA(lagA2,temp,lagA2);
+        // Fast
+        lagged({'U':buffer0,'X':lagB1,'noise':noise,'alpha':alphaB},temp);copy(temp,lagB1);
+        blurB(lagB1,temp,lagB1);
+        lagged({'U':lagB1  ,'X':lagB2,'noise':noise,'alpha':alphaB},temp);copy(temp,lagB2);
+        blurB(lagB2,temp,lagB2);
+        // Difference is fast-slow
+        diff({'Ufast':lagB2,'Uslow':lagA2},delta);
+        
+        // Oscillating system
+        rx({'X':X,'Y':Y,'LX':LX,'LY':LY,'ch':ch,'sh':sh},tempX);
+        ry({'X':X,'Y':Y,'LX':LX,'LY':LY,'ch':ch,'sh':sh},tempY);
+        copy(tempX,X);
+        copy(tempY,Y);
+        blurC(X,temp,X);
+        blurC(Y,temp,Y);
+        laplacian({"data":X},LX);
+        laplacian({"data":Y},LY);
+        blurD(LX,temp,LX);
+        blurD(LY,temp,LY);
+        
+        update({'U':delta,'X':X},temp); copy(temp,X);
+        
+        let cq = Math.cos(phi);
+        let sq = Math.sin(phi);
+        dephase({'X':X,'Y':Y,'ch':cq,'sh':sq});
+        
+    }
+    animate();
+}
+function getcam(gl) {
+    let c = document.getElementById("cam");
+    navigator.mediaDevices.getUserMedia({video:1,audio:0}).then(
+        (s)=>{try{if('srcObject' in c)c.srcObject=s;
+        else c.src=window.URL.createObjectURL(s); c.play();}
+        catch(e){c.src=s;}},console.log);
+    c.gl = gl;
+    c.texture = image_texture(gl,c);
+    c.next = ()=>{
+        gl.bindTexture(gl.TEXTURE_2D, c.texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);    
+    };
+    return c;
+}
+</script></head>
+<body onload="javascript:main()">
+<canvas id='canvas' style="width:512px;height:512px;"></canvas>
+<video id='cam' visible="False" style="width: 512px; height: 512px; display:none;" controls="true" playsinline="" crossorigin="anonymous"></video>
+</body>
+</html>
