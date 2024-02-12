@@ -449,7 +449,7 @@ function newParameter(gl,program,unif) {
     }
     return param;
 }
-newBasicFramebuffer
+
 /**
  * Retrieves variable information by name from a WebGL context
  * WebGL doesn't provide an easy way to do this. So, the first time
@@ -676,6 +676,7 @@ function set_pixel_at(gl,texture,x,y) {
  */
 function get_pixel_at(gl,texture,x,y) {
     var read = new Uint8Array(4);
+    if (texture.hasOwnProperty('texture')) texture = texture.texture;
     gl.bindFramebuffer(gl.FRAMEBUFFER,texture);
     gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, read);
     return read;

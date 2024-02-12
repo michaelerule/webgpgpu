@@ -40,6 +40,7 @@ function GPUNoise(gl) {
           vec4 c4 = texture2D(data,(XY+vec2( 0,-1))*scale);  
           gl_FragColor = mod(exp(c0*c1+c2+c3+c4)*sqrt(15193.), 1.0);  
       }`);
+
     var copy = buildRasterProgram(gl,
      `uniform sampler2D data;  
       void main() {  

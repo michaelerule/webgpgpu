@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html><head><script>
+function main() {
+    // Capture webcam input using invisible `video` element
+    // Adapted from p5js.org/examples/3d-shader-using-webcam.html
+    let camera = document.getElementById("camera");
+    
+    // Ask user permission to record their camera
+    navigator.mediaDevices.getUserMedia({video:1,audio:0}).then(
+        (stream)=>{ try {
+            if ('srcObject' in camera) camera.srcObject = stream;
+            else camera.src = window.URL.createObjectURL(stream);
+        } catch (err) {camera.src = stream;}},console.log);
+    camera.play();
+    
+    // 512×512 Canvas with WebGL context
+    var canvas = document.getElementById("maincanvas");
+    var gl = canvas.getContext("webgl");
+    canvas.width = canvas.height = 512;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    // Vertex shader: Identity map
+    var vshader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vshader,
+        "attribute vec2 p;"+
+        "void main(){"+
+        "    gl_Position = vec4(p,0,1);"+
+        "}");
+    gl.compileShader(vshader); 
+    
+    // Fragment shader: sample video texture, change colors
+    var fshader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fshader,
+        "uniform sampler2D data; "+
+        "void main() {"+
+        "    gl_FragColor=texture2D(data,gl_FragCoord.xy/vec2(512,512)).zxyw;"+
+        "}");
+    gl.compileShader(fshader); 
+    
+    // Create and link program
+    var program  = gl.createProgram();
+    gl.attachShader(program,vshader);
+    gl.attachShader(program,fshader);
+    gl.linkProgram(program);   
+    gl.useProgram(program);
+
+    // Vertices: A screen-filling quad made from two triangles
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    
+    // Texture to contain the video data
+    var texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); 
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    
+    // Bind texture to the "data" input to the fragment shader
+    var param = gl.getActiveUniform(program,0); // data bind point
+    gl.uniform1i(gl.getUniformLocation(program,"data"),0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D,texture);
+    
+    // Repeatedly pull camera data and render
+    function animate(){
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, camera);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        requestAnimationFrame(animate);
+    }
+    animate();
+}
+</script></head>
+<body onload="javascript:main()">
+<canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+<video id='camera' visible="False" style="width: 512px; height: 512px; display:none;" controls="true" playsinline="" crossorigin="anonymous"></video>
+</body>
+</html>

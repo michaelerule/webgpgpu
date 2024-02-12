@@ -220,6 +220,7 @@ function main()
 </script>
 <body onload="javascript:main()">
 <canvas id='maincanvas' style="width:512px;height:512px;"></canvas>
+</br>
 <div id='statinfo'>Stat info goes here</div>
 </body>
 </html>

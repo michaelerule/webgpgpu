@@ -159,7 +159,7 @@ function main()
         rttFramebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, rttFramebuffer);
         rttTexture = gl.createTexture();
-        // Make it the active texture 
+        // Make it the active texture (f'in state machines)
         gl.bindTexture  (gl.TEXTURE_2D, rttTexture);
         // Say what to do if texture must be scaled up
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);

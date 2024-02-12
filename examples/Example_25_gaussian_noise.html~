@@ -79,6 +79,8 @@ function HCrTransform(p){
 // This is the main script that will run when the website loads
 function main()
 {
+    console.log('running');
+
     // Get our example image (a tulip)
     // it has already been cropped to a square (a requirement for loading
     // images as textures for WebGL)

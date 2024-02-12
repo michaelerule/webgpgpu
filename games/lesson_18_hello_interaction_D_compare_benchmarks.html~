@@ -207,7 +207,7 @@ function main()
         copy(game_temp,game_state);
     }
     var t1 = performance.now();
-    console.log(">>> Shader method with full viewport took "+(t1-t0));
+    console.log("Shader method with full viewport took "+(t1-t0));
     
     // Test the shader method
     var t0 = performance.now();

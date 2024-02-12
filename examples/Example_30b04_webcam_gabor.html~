@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html><head>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+
+<script id="rescale" type="x-shader/x-fragment">
+uniform sampler2D data;
+uniform vec2 scale;
+uniform vec2 shift;
+void main() {
+    gl_FragColor = texture2D(data,shift+gl_FragCoord.xy*scale);
+}
+</script>
+<script id="fragment" type="x-shader/x-fragment">
+#define BLOCKSIZE (64.0)
+#define NBLOCKS (512.0/BLOCKSIZE)
+#define PI (3.141592653589793)
+#define TWOPI (6.283185307179586)
+#define HALFPI (1.5707963267948966)
+#define PHASESCALE (PI/NBLOCKS)
+#define R (6.0)
+#define RLIM (R*R)
+#define RSCALE (R/PI)
+#define R2SCALE (RSCALE*RSCALE)
+#define T (sqrt(1.0/R2SCALE))
+#define d (1.0/BLOCKSIZE)
+uniform sampler2D data;
+void main() {
+    
+    vec2 pxy   = fract(gl_FragCoord.xy/BLOCKSIZE);
+    vec2 block = floor(gl_FragCoord.xy/BLOCKSIZE);
+    
+    pxy.x = 1.0-pxy.x;
+    
+    float theta = block.x*PHASESCALE;
+    vec2 orient = vec2(cos(theta),sin(theta));
+    float phi = block.y*PHASESCALE;
+    
+    vec2  z = pxy-0.5;
+    float r = length(z);
+    float s = exp(-r*r*1000.0)*sin(110.0*dot(orient,z)+phi);
+    if (r>R*d) s=0.0;
+    gl_FragColor = vec4(0.5+0.5*vec3(s),1.0);
+    
+    float scale = exp2(block.y/(NBLOCKS-1.0)*2.0-2.0);
+    
+    float normalizeCos = 0.0;
+    float normalizeSin = 0.0;
+    vec3 sumCos = vec3(0.0);
+    vec3 sumSin = vec3(0.0);
+    for (float i=-R; i<R+1.0; i++) {
+        for (float j=-R; j<R+1.0; j++) {
+            if (i*i+j*j<R*R) {
+                vec2  u = vec2(i,j);
+                vec2  z = u*d;
+                float r = length(z)*scale;
+                float w = exp(-r*r*1000.0);
+                float h = 110.0*dot(orient,z)*scale;
+                float wc = w*cos(h);
+                float ws = w*sin(h);
+                normalizeCos += wc*wc;
+                normalizeSin += ws*ws;
+                sumCos += wc*texture2D(data,z+pxy).xyz;
+                sumSin += ws*texture2D(data,z+pxy).xyz;
+            }
+        }
+    }
+    sumCos /= sqrt(normalizeCos);
+    sumSin /= sqrt(normalizeSin);
+    vec3 a = sqrt(sumCos*sumCos+sumSin*sumSin);
+    gl_FragColor = vec4(a,1.0);
+    //gl_FragColor = vec4(.5+(sum/sqrt(normalize)),1.0);
+}
+</script>
+<script>
+function main() {
+    var gl   = getRasterGL($("canvas")); if (!gl) OUT;
+    var cam  = getcam(gl);
+    var show = GPUcopy(gl);
+    
+    var rescale = buildRasterProgram(gl,$('rescale' ).text);
+    var kernel  = buildRasterProgram(gl,$('fragment').text);
+    var texture = cam.texture;
+        
+    var blur = GPUGaussianMultiBlur(gl,4,1,30,0);
+        
+    var buffer1 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var buffer2 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    
+    var MINISIZE = 128;
+    var buffer0 = newBasicFramebuffer(gl,{width:MINISIZE, height:MINISIZE, wrap : gl.REPEAT});
+
+    // Repeatedly pull cam data and render
+    function animate(){
+    
+        cam.next();
+        
+        let vw = cam.videoWidth;
+        let vh = cam.videoHeight;
+        if (vw>vh) {
+            scale = [1.0/MINISIZE*vh/vw, 1.0/MINISIZE];
+            shift = [(vw-vh)/2/vw,0]
+        } else {
+            scale = [1.0/MINISIZE, 1.0/MINISIZE*vw/vh];
+            shift = [0,(vh-vw)/2/vh]
+        }
+        rescale({"data":texture, "scale":scale, "shift":shift}, buffer0);
+        kernel(buffer0,buffer1);
+        show(buffer1);
+        setTimeout(animate,50); // or requestAnimationFrame(animate);
+    }
+    animate();
+}
+function getcam(gl) {
+    let c = document.getElementById("cam");
+    navigator.mediaDevices.getUserMedia({video:1,audio:0}).then(
+        (s)=>{try{if('srcObject' in c)c.srcObject=s;
+        else c.src=window.URL.createObjectURL(s); c.play();}
+        catch(e){c.src=s;}},console.log);
+    c.gl = gl;
+    c.texture = image_texture(gl,c);
+    c.next = ()=>{
+        gl.bindTexture(gl.TEXTURE_2D, c.texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);    
+    };
+    return c;
+}
+</script></head>
+<body onload="javascript:main()">
+<canvas id='canvas' style="width:512px;height:512px;"></canvas>
+<video id='cam' visible="False" style="width: 512px; height: 512px; display:none;" controls="true" playsinline="" crossorigin="anonymous"></video>
+</body>
+</html>

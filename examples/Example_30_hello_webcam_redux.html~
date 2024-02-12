@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html><head>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+
+<script id="fragment" type="x-shader/x-fragment">
+uniform sampler2D data;
+void main() {
+    gl_FragColor=texture2D(data,gl_FragCoord.xy/vec2(512,512)).zxyw;
+}
+</script>
+<script>
+function main() {
+    var cam = getcam();
+    var gl = getRasterGL($("canvas")); if (!gl) OUT;
+    var show = GPUcopy(gl);
+    
+    var kernel  = buildRasterProgram(gl,$('fragment').text);
+    var texture = image_texture(gl,cam);
+        
+    var blur = GPUGaussianMultiBlur(gl,4,1,30,0);
+        
+    var buffer1 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+    var buffer2 = newBasicFramebuffer(gl,{wrap : gl.REPEAT});
+
+    // Repeatedly pull cam data and render
+    function animate(){
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cam);
+
+        blur(texture,buffer2,buffer1);
+        show(buffer1);
+        requestAnimationFrame(animate);
+    }
+    animate();
+}
+function getcam() {
+    let cam = document.getElementById("cam");
+    navigator.mediaDevices.getUserMedia({video:1,audio:0}).then(
+        (s)=>{try{if('srcObject' in cam)cam.srcObject=s;
+        else cam.src=window.URL.createObjectURL(s);}
+        catch(e){cam.src=s;}},console.log);
+    cam.play();
+    return cam;
+}
+</script></head>
+<body onload="javascript:main()">
+<canvas id='canvas' style="width:512px;height:512px;"></canvas>
+<video id='cam' visible="False" style="width: 512px; height: 512px; display:none;" controls="true" playsinline="" crossorigin="anonymous"></video>
+</body>
+</html>

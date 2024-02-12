@@ -185,8 +185,8 @@ function main() {
     //render( {}, X );
         
     // Slow-fast time derivative parameters
-    alphaA = 0.05;
-    alphaB = 0.5;
+    alphaA = 0.2;
+    alphaB = 0.75;
         
     // Oscillation parameters
     let decay = 1.0;

@@ -51,7 +51,7 @@ function main()
 
     // We have to manually walk through the compiliation and linking
     // steps for the vertex (polygons) and fragment (pixel) shader
-    // programs; Each program must be created, initialized, compiled,
+    // programs each program must be created, initialized, compiled,
     // bound to our gl context, and the whole lot must then be linked
     // and put to use.
     var program  = gl.createProgram();
