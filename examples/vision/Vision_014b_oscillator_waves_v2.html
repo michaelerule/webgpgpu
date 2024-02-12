@@ -259,6 +259,8 @@ function getcam(gl) {
 </script></head>
 <body onload="javascript:main()">
 Give the browser permission to access your webcam, ensure that autoplay is enabled for this page, and refresh.<br/>
+Ensure that the URL starts with <tt>https://</tt>: Modern browsers require secure HTTP to allow camera access.<br/>
+If all you see is a static image, ensure that autoplay blockers are disabled, autoplay is enabled, and refresh.<br/>
 <canvas id='canvas' style="width:512px;height:512px;"></canvas>
 <video id='cam' visible="False" style="width: 512px; height: 512px; display:none;" controls="true" playsinline="" crossorigin="anonymous"></video>
 </body>
