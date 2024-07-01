@@ -315,7 +315,8 @@ Cellular automata performing a sort of diffusion-limited aggregation. Dendrites 
 
 <tr><td width='120'><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_13_forest_fire.html"><img src='https://michaelerule.github.io/webgpgpu/games/screenshots/cropped/Screenshot%20at%202020-10-14%2022-18-09.png' width='100'/></a></td>
 <td><a href="https://github.com/michaelerule/webgpgpu/blob/master/games/lesson_13_forest_fire.html"><h4>Game Example 13: "Forest Fire"</h4></a>
-(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_13_forest_fire.html">run in browser</a>)
+(<a href="https://michaelerule.github.io/webgpgpu/games/lesson_13_forest_fire.html">run in browser</a>; 
+<a href="https://michaelerule.github.io/webgpgpu/games/lesson_13_forest_fire_large.html">large</a>)
 <break/>
 Forest fire cellular automata. Trees burn, turn to ash, then grass, then shrub, then trees, then burn again. Should be close-ish to criticality, and generate patterns at a range of scales. Same as the model for developmental retinal waves in <a href="https://mrule-intheworks.blogspot.com/2019/02/neural-field-models-for-latent-state.html">this paper</a>.
 </td></tr>
