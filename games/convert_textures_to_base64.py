@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 # BEGIN PYTHON 2/3 COMPATIBILITY BOILERPLATE
 from __future__ import absolute_import
@@ -17,8 +17,6 @@ https://stackoverflow.com/questions/2395765/store-images-in-javascript-object
 
 from PIL import Image
 from PIL import ImageOps
-
-
 import os,sys
 
 supported = {"png","jpg"}
@@ -40,7 +38,7 @@ for f in files:
     im = ImageOps.flip(im)
     im.save(ff)
 
-    b64encoded = base64.b64encode(open(ff,"rb").read())
+    b64encoded = base64.b64encode(open(ff,"rb").read()).decode('ascii')
     filetype   = f.split(".")[-1].lower()
     datastring = ("data:image/%s;base64,"%filetype) + b64encoded
     varname    = "_".join(f.split(".")[:-1]).lower()
