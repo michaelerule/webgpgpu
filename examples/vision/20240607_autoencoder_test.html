@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html><head>
+<script src="../../lib2/gpgpu.js"></script>
+<script src="../../lib2/gpugaussian.js"></script>
+<script src="../../lib2/gpurand.js"></script>
+<script id="rescale" type="x-shader/x-fragment">
+uniform sampler2D data;
+uniform vec2 scale;
+uniform vec2 shift;
+void main() {
+  vec2 pxy = shift+gl_FragCoord.xy*scale;
+  pxy.x = 1.0-pxy.x; // Mirror
+  gl_FragColor = texture2D(data,pxy);
+}
+</script>
+<script id="desaturate" type="x-shader/x-fragment">
+uniform sampler2D data;
+void main() {
+  vec3  c = texture2D(data,gl_FragCoord.xy/vec2(W,H)).rgb;
+  float v = (c.r+c.g+c.b)/3.0;
+  gl_FragColor = vec4(vec3(v),1.0);
+}
+</script>
+<script id="splitrgb" type="x-shader/x-fragment">
+uniform sampler2D data;
+layout (location = 0) out vec4 outColor0;
+layout (location = 1) out vec4 outColor1;
+layout (location = 2) out vec4 outColor2;
+layout (location = 3) out vec4 outColor3;
+layout (location = 4) out vec4 outColor4;
+layout (location = 5) out vec4 outColor5;
+layout (location = 6) out vec4 outColor6;
+layout (location = 7) out vec4 outColor7;
+void main() {
+  outColor0 = texture(data,gl_FragCoord.xy/vec2(W,H));
+  outColor1 = texture(data,gl_FragCoord.xy/vec2(W,H));
+  outColor2 = texture(data,gl_FragCoord.xy/vec2(W,H));
+  outColor3 = texture(data,gl_FragCoord.xy/vec2(W,H));
+  outColor4 = texture(data,gl_FragCoord.xy/vec2(W,H));
+  outColor5 = texture(data,gl_FragCoord.xy/vec2(W,H));
+  outColor6 = texture(data,gl_FragCoord.xy/vec2(W,H));
+  outColor7 = texture(data,gl_FragCoord.xy/vec2(W,H));
+}
+</script>
+
+<script>
+function main() {
+  // WebGL canvas and camera capture
+  var gl   = getRasterGL($("canvas")); if (!gl) OUT;
+  var cam  = getcam(gl);
+  
+  console.log("MAXIMUM OUTPUT TEXTURES:");
+  console.log(gl.getParameter(gl.MAX_COLOR_ATTACHMENTS));
+  if (gl.getParameter(gl.MAX_COLOR_ATTACHMENTS)<8)
+    notify("Your hardware does not support enough render targets");
+    
+  if (!gl.getExtension('EXT_color_buffer_float'))
+    throw new Error('Rendering to floating point textures is not supported on this platform');
+  
+  // Shader programs
+  var copy     = GPUcopy(gl);
+  var rescale  = buildRasterProgram(gl,$('rescale'   ).text);
+  var desat    = buildRasterProgram(gl,$('desaturate').text);
+  var splitrgb = buildRasterProgram(gl,$('splitrgb'  ).text,"","",true);
+  
+  // Buffers
+  var texture   = cam.texture;
+  var MINISIZE  = 512;
+  var cambuffer = newBasicFramebuffer(gl,{width:MINISIZE, height:MINISIZE, wrap : gl.REPEAT});
+  var buffer0   = newBasicFramebuffer(gl,{width:MINISIZE, height:MINISIZE, wrap : gl.REPEAT});
+  var buffer1   = newBasicFramebuffer(gl,{width:MINISIZE, height:MINISIZE, wrap : gl.REPEAT});
+  var buffers   = new8Framebuffers(gl,{width:MINISIZE, height:MINISIZE, wrap : gl.REPEAT, format:gl.RGBA, type:gl.UINT8});
+  
+  // Prepare GPU random number generator
+  console.log('initializing RNG');
+  var gpurng = GPUNoise(gl);
+  var noise  = newBasicFramebuffer(gl,{wrap:gl.REPEAT});
+  gpurng.randomize(noise);
+  console.log('initialized RNG');
+  
+  // Initial conditions?
+  copy(noise,buffer0);
+  copy(noise,buffer1);
+  copy(noise,buffers[0]);
+  copy(noise,buffers[1]);
+  copy(noise,buffers[2]);
+  copy(noise,buffers[3]);
+  copy(noise,buffers[4]);
+  copy(noise,buffers[5]);
+  copy(noise,buffers[6]);
+  copy(noise,buffers[7]);
+  
+  function get_camera(buffer) {
+    cam.next();
+    let vw = cam.videoWidth;
+    let vh = cam.videoHeight;
+    if (vw>vh) {g=[1/MINISIZE*vh/vw,1/MINISIZE];b=[(vw-vh)/2/vw,0]}
+    else       {g=[1/MINISIZE,1/MINISIZE*vw/vh];b=[0,(vh-vw)/2/vh]}
+    rescale({"data":texture, "scale":g, "shift":b}, cambuffer);   
+    copy(cambuffer,buffer);
+  }
+
+  var framerate = 30; // FPS, Hz
+  var framedtms = 1000/framerate;
+  var last_frame_ms = Date.now();
+  function animate(){
+    requestAnimationFrame(animate);
+    if (Date.now()-last_frame_ms < framedtms) return;
+    last_frame_ms = Date.now();
+     
+    get_camera(buffer0);
+    desat({data:buffer0},buffer1);
+    splitrgb({data:buffer1}, buffers);
+    copy(buffers[0]);
+  }
+  animate();
+}
+function getcam(gl) {
+  let c = document.getElementById("cam");
+  navigator.mediaDevices.getUserMedia({video:1,audio:0}).then(
+  (s)=>{try{if('srcObject' in c)c.srcObject=s;
+  else c.src=window.URL.createObjectURL(s); c.play();}
+  catch(e){c.src=s;}},console.log);
+  c.gl = gl;
+  c.texture = image_texture(gl,c);
+  c.next = ()=>{
+  gl.bindTexture(gl.TEXTURE_2D, c.texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);  
+  };
+  return c;
+}
+</script></head>
+<body onload="javascript:main()">
+<canvas id='canvas' style="width:512px;height:512px;"></canvas>
+<video id='cam' visible="False" style="width: 512px; height: 512px; display:none;" controls="true" playsinline="" crossorigin="anonymous"></video>
+</body>
+</html>

@@ -131,18 +131,14 @@ function buildRasterProgram(gl,fragment,defines,header,use_webgl2) {
     compileAndBindShader(gl,program,source,gl.FRAGMENT_SHADER);
     gl.linkProgram(program);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        console.log("LINKING ERRORS");
-        console.log(gl.getProgramInfoLog(program));
-        alert("Could not initialise shader " + source);        
+        alert(
+          "Linking error:\n" + 
+          gl.getProgramInfoLog(program) + 
+          "\n\nsouce:\n" + 
+          linenumbers(source));
         return null;
     }
-    // Need to manually inform the vertex shader about the coordinates
-    // This can only be done after the program as been compiled and
-    // linked. However, this function call relies on the program
-    // having been created by getDefaultRasterProgram above.
-    // So this... ? does something? handles an argument for the
-    // vertex shader? 
-    // Should this really be here as opposed to in the call?
+    // Tell WbGL how the vertex shader handles coordinates
     activateVertexShaderPosition(gl,program);
     program.gl = gl;
     callable_program = (args,out)=>{applyProgram(program,args,out);};
@@ -150,6 +146,7 @@ function buildRasterProgram(gl,fragment,defines,header,use_webgl2) {
     callable_program.source  = source;
     return callable_program;
 }
+
 
 
 /** 
@@ -177,15 +174,10 @@ function gl_safe(gl) {
  * @param defines - optional list of #defines for the shader
  */
 function getRasterProgram(gl,fragment,defines,header) {
-    if (!$(fragment)) {
-        console.log("Could not locate program "+fragment);
-        return;
-    }
-    return buildRasterProgram(gl,$(fragment).text,defines,header);
+    if ($(fragment)) return buildRasterProgram(gl,$(fragment).text,defines,header);
+    console.log("Did not find program "+fragment);
+    return;
 }
-
-
-
 
 /**
  * Attach texture to given index and variable in a gl program
@@ -230,16 +222,14 @@ function newTexture(gl,params) {
     var texture = gl.createTexture();
     var target  = params['target'] || gl.TEXTURE_2D;
     gl.bindTexture(target, texture);
-    gl.texParameteri(target,
-        gl.TEXTURE_MAG_FILTER, params['mag_filter'] || gl.LINEAR);
-    gl.texParameteri(target,
-        gl.TEXTURE_MIN_FILTER, params['min_filter'] || gl.LINEAR);
+    gl.texParameteri(target, gl.TEXTURE_MAG_FILTER, params['mag_filter'] || gl.LINEAR);
+    gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, params['min_filter'] || gl.LINEAR);
     gl.texParameteri(target, gl.TEXTURE_WRAP_S,XEDGE);
     gl.texParameteri(target, gl.TEXTURE_WRAP_T,YEDGE);
     // remaining parameters set by texImage2D
     gl.texImage2D(target,
         params['level' ] || 0,
-        params['format'] || gl.RGBA,
+        params['format'] || gl.RGBA, //internalFormat
         W,H,0,
         params['format'] || gl.RGBA,
         params['type'  ] || gl.UNSIGNED_BYTE,
@@ -289,8 +279,8 @@ function newBasicFramebuffer(gl,params) {
         gl.COLOR_ATTACHMENT0,
         gl.TEXTURE_2D,
         texture, 0);
-    framebuffer.gl      = gl;
     framebuffer.texture = texture;
+    framebuffer.gl      = gl;
     framebuffer.width   = texture.width ;
     framebuffer.height  = texture.height;
     return framebuffer;
@@ -317,8 +307,8 @@ function new8Framebuffers(gl,params) {
           gl.TEXTURE_2D,
           textures[i], 0);
     }
-    framebuffer.gl      = gl;
     framebuffer.texture = textures;
+    framebuffer.gl      = gl;
     framebuffer.width   = textures[0].width ;
     framebuffer.height  = textures[0].height;
     return textures;
@@ -328,10 +318,25 @@ function new8Framebuffers(gl,params) {
  *
  */
 function renderProgram(gl,program,framebuffer) {
-    //gl.bindBuffer(gl.ARRAY_BUFFER, gl.screen_quad);
-    //gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
-    gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer||null);
+    if(framebuffer && isList(framebuffer)) {
+        let l = framebuffer.length;
+        if (l<=0) {
+            console.log("WARNING: Empty texture list passed as rendering target; Assuming none");
+            gl.bindFramebuffer(gl.FRAMEBUFFER,null);
+        } else {
+            let maxntx = gl.getParameter(gl.MAX_COLOR_ATTACHMENTS);
+            if (l>maxntx) {alert("Framebuffer has more textures than allowed color attachments ("+maxntx+")"); return;}
+            if (!Object.hasOwn(framebuffer[0],"framebuffer")) { alert("Rendering target not a framebuffer"); return;}
+            gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer[0].framebuffer);            
+            let ctch = [];
+            for (var i=0; i<l; i++) ctch[i] = gl.COLOR_ATTACHMENT0+i;
+            gl.drawBuffers(ctch);
+        }
+    } else {
+        gl.bindFramebuffer(gl.FRAMEBUFFER,framebuffer||null);
+    }
     gl.useProgram(program);
+    // Assuming full-screen tris bound to ArrayBuffer; cf getRasterGL
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.useProgram(null);
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);
@@ -468,14 +473,22 @@ function getParameter(gl,program,param) {
         }
     }
     var found = program.__GL_VARINFO__[param];
-    if (!found) {
-        //console.log('Could not locate parameter "'+param+'". '+
-        //    'This may be benign (shader may have optimized it away),'+
-        //    'or you may have a typo in the variable name.');
-    }
     return found;
 }
 
+
+/**
+ *
+ */
+function isList(a) {
+    return typeof a==='object' && a!==null && Object.prototype.toString.call(a) === '[object Array]';
+}
+function isDict(v) {
+    return typeof v==='object' && v!==null && !(v instanceof Array) && !(v instanceof Date);
+}
+function isSingleTexture(v) {
+    return Object.hasOwn(v,"texture");
+}
 /**
  * Apply a shader program as if it were a function.
  *
@@ -494,8 +507,12 @@ function getParameter(gl,program,param) {
  * @param output - a frame buffer or null if rendering to screen
  */
 function applyProgram(program,inputs,output) {
-    var texture_counter = 0;
     var gl = program.gl;
+    
+    if (isSingleTexture(inputs)||isList(inputs)) 
+        throw Error("Please pass parameters as a {name:value} dictionary"); 
+      
+    var texture_counter = 0;
     for (var key in inputs) if (inputs.hasOwnProperty(key)) {
         var param = getParameter(gl, program, key);
         if (param == null) continue;
@@ -510,9 +527,18 @@ function applyProgram(program,inputs,output) {
         else if (param.mode==='variable'||param.mode==='matrix') param.set(inputs[key]);
         else {throw new Error('Unrecognized parameter mode'+param+' '+param.mode);}
     }
+    
     if (output && output.hasOwnProperty('framebuffer'))
         output = output.framebuffer;
     renderProgram(gl,program,output);
+}
+
+
+/**
+ *
+ */
+function getProgram(gl,name) {
+    return buildRasterProgram(gl,$(name).text);
 }
 
 /**
@@ -531,7 +557,7 @@ function getRasterGL(canvas) {
           || canvas.getContext("experimental-webgl", { alpha: false })
           || canvas.getContext("webgl", { alpha: false });
     if (!gl) {
-        alert("Browser does now support WebGL");
+        alert("Browser doesn't support WebGL");
         return gl;
     }
     // There are two dimensions we need to worry about
@@ -550,13 +576,13 @@ function getRasterGL(canvas) {
     // affords direct access to pixels through the fragment shader.
     gl.screen_quad = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.screen_quad);
-    gl.bufferData(gl.ARRAY_BUFFER,
-        new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),
-        gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
     
     gl.width  = canvas.width;
     gl.height = canvas.height;
     gl_safe(gl);
+    
+    gl.getProgram = (s)=>{return getProgram(gl,s);};
     return gl;
 }
 
@@ -621,7 +647,7 @@ function check_error(gl){
             msg+='INVALID_OPERATION: The specified command is not allowed for the current state'; 
             break;
             case gl.INVALID_FRAMEBUFFER_OPERATION: 
-            msg+='INVALID_FRAMEBUFFER_OPERATION: The currently bound framebuffer is not framebuffer complete when trying to render to or to read from it'; 
+            msg+='INVALID_FRAMEBUFFER_OPERATION: Incomplete bound framebuffer when trying to render/read'; 
             break;
             case gl.OUT_OF_MEMORY: 
             msg+='OUT_OF_MEMORY: Not enough memory is left to execute the command'; 
