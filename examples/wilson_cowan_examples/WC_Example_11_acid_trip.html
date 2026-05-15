@@ -31,13 +31,12 @@ void main() {
     vec2 T  = twopi*n.zw;           // into Gaussian using Box-
     vec4 N  = vec4(R*cos(T),R*sin(T))*.1; // Muller transform.
 
-
     // remapper
     vec2 z = vec2(XY);
     z = z*2.-1.;
     vec2 u;
     u.x = atan(z.y,z.x)-t*0.0003;
-    u.y = log(length(z))-t*0.001;
+    u.y = log(length(z))-t*0.01;
 
     vec4 RGBA = texture2D(data,u*over2pi);
 
@@ -171,7 +170,7 @@ function main()
                 noise : noise,
                 data  : temp,
                 t : t});
-            t += 3;
+            t += 1;
             make_fullscreen();
             requestAnimationFrame(animate);
         },0);
