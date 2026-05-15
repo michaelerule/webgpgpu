@@ -54,29 +54,21 @@ void main() {
     sum /= norm*float(NWAVE);
     
     float s = sum.x;
-    float brightness = sin((sum.x*0.5+1.0)*14.0*PI)*0.5+0.5;
     
-    brightness = 1.0;//brightness*0.75+0.25;
-    //brightness = brightness*0.75+0.25;
-    brightness = pow(brightness,3.0);
-    // Hue wheel coloring
-    
-    //float brightness = 1.0;
-    //sum = sum/length(sum);
-    //float hue =1.0*(atan(sum.y,sum.x)+1.0+0.0*huebias);
     float hue =sum.x*2.0*PI+huebias;
     float ch = cos(hue);
     float sh = sin(hue);
     float Q1 = sh/sqrt(3.0);
     float Q2 = (1.0-ch)/3.0;
-    vec4  c  = vec4(0,1,0.7,1);
+    //vec4  c  = vec4(0,1,0.7,1);
+    vec3  c  = vec3(0.8,0.8,0.0);
     vec3  d  = c.rgb-c.brg;
     float r1 = Q2*(d.g-d.r)-Q1*d.b+c.r;
     float Z  = Q2*(d.b-d.r)+Q1*d.g;
-    vec3 c2  = vec3(r1,c.g+Z+c.r-r1,c.b-Z)*brightness;
-    //c2 = vec3(brightness);
-    
-    c2.b = c2.r+c2.g;//c2.b*(c2.r+c2.g+0.5);
+    vec3 c2  = vec3(
+        r1,
+        c.g+Z+c.r-r1,
+        c.b-Z);
     
     gl_FragColor = vec4(c2,0.0);
 }
@@ -190,11 +182,14 @@ Audio <a href="https://en.wikipedia.org/wiki/File:DescenteInfinie.ogg">via Wikim
 <a onclick="fullscreen();" href="#">Fullscreen</a>
 </div>
 
+
 <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;pointer-events:none;font:bold 28pt sans-serif;text-align:center;color:white;-webkit-text-stroke:3px black;">
+THIS TASK WAS APPOINTED TO YOU<br>
+IF YOU DO NOT FIND A WAY, NO ONE WILL<br>
 FOCUS ON THIS TASK<br>
-ONE STEP AT A TIME<br>
 THIS IS A GOOD PATH<br>
 THERE IS BEAUTY IN THIS JOURNEY<br>
+ONE STEP AT A TIME<br>
 THIS IS WHERE YOU WANT TO BE<br>
 AND WE ARE WITH YOU<br>
 </div>
