@@ -171,7 +171,7 @@ function main()
                 noise : noise,
                 data  : temp,
                 t : t});
-            t += 1;
+            t += 3;
             make_fullscreen();
             requestAnimationFrame(animate);
         },0);
@@ -184,6 +184,7 @@ function main()
 <div class=wrap id='wrapper'>
 <canvas id='maincanvas' style="width:1024px;height:1024px;"></canvas>
 </div>
+
 <div style="position: fixed;top: 50%;left: 50%;transform: translate(-50%, -50%);
 z-index: 9999;pointer-events: none;font: bold 28pt sans-serif;text-align: center;
 color: white;-webkit-text-stroke: 3px black;">
