@@ -37,10 +37,8 @@ void main() {
     float height = -sin(potential*PI*3.5)*0.5+0.5;
     vec3 c2 = vec3(height);
     
-    float alterphase = potential*PI*3.5;
-    
     // Hue wheel
-    float hue = atan(gradient.y,gradient.x) + hue0 + length(q)*10.0 + alterphase;
+    float hue = atan(gradient.y,gradient.x) + hue0 + length(q)*10.0;
     vec2  h   = vec2(cos(hue),sin(hue));
     float Q1  = h.y/sqrt(3.0);
     float Q2  = (1.0-h.x)/3.0;
@@ -48,7 +46,7 @@ void main() {
     vec3  d   = c.rgb-c.brg;
     float r1  = Q2*(d.g-d.r)-Q1*d.b+c.r;
     float Z   = Q2*(d.b-d.r)+Q1*d.g;
-    c2 = vec3(r1,c.g+Z+c.r-r1,c.b-Z);//*(0.5+(1.0-height)*0.5);
+    c2 = vec3(r1,c.g+Z+c.r-r1,c.b-Z)*(0.5+(1.0-height)*0.5);
     
     vec3  normal = normalize(vec3(gradient,0.2*float(NWAVE)));
     vec3  light  = normalize(vec3(1.,-1.,2.));
