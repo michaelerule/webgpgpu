@@ -250,18 +250,16 @@ Interpret length-2 vectors as complex numbers using a collection of macros. More
 An infinitely-zooming quasicrystal visualization with Shepard tone accompaniment, black and white.
 </td></tr>
 <tr><td><a href="./examples/Example_28_quasizoom_color.html"><img src='./examples/example_previews/20260517112110029424263_screenshot.png' width='100'/></a></td>
-<td><a href="./examples/20260517112110029424263_screenshot.png"><h4>Example 17: "Quasicrystal 2"</h4></a>
+<td><a href="./examples/20260517112110029424263_screenshot.png"><h4>Focus</h4></a>
 (<a href="http://michaelerule.github.io/webgpgpu/examples/Example_28_quasizoom_color.html">run in browser</a>)
 <break/>
 Just for fun.
-An infinitely-zooming quasicrystal visualization with Shepard tone accompaniment, color.
 </td></tr>
 <tr><td><a href="./examples/wilson_cowan_examples/WC_Example_11_acid_trip.html"><img src='./examples/example_previews/WCexample11.png' width='100'/></a></td>
-<td><a href="./examples/wilson_cowan_examples/WC_Example_11_acid_trip.html"><h4>Example 11: "Psychedelic"</h4></a>
+<td><a href="./examples/wilson_cowan_examples/WC_Example_11_acid_trip.html"><h4>Steady</h4></a>
 (<a href="http://michaelerule.github.io/webgpgpu/examples/wilson_cowan_examples/WC_Example_11_acid_trip.html">run in browser</a>)
 <break/>
 Just for fun.
-Full-screen test of a logarithmically-mapped Wilson-Cowan pattern forming system. Additional noise and hue rotation effects are added. This is purely a visual demonstration.
 </td></tr>
 <tr><td><a href="./examples/Example_28_quasizoom_color.html"><img src='./examples/example_previews/20260517112115024341341_screenshot.png' width='100'/></a></td>
 <td><a href="./examples/Example_31_quasizoom_color_nonuniform.html"><h4>Breathe</h4></a>
