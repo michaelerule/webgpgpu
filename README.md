@@ -167,49 +167,6 @@ Track the mouse location and render a Julia set using video feedback.
 </table>
 
 
-# Psychedelic
-These examples are "Just for fun"
-<table>
-<tr><td width='120'><a href="./examples/Example_9_quadratic_feedback.html"><img src='./examples/example_previews/example9.png' width='100'/></a></td>
-<td><a href="./examples/Example_9_quadratic_feedback.html"><h4>Example 9: "Quadratic feedback"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_9_quadratic_feedback.html">run in browser</a>)
-<break/>
-Quadratic video feedback example of iterated conformal maps which can be used to render Julia set fractals. 
-</td></tr>
-<tr><td><a href="./examples/Example_10_logarithmic_feedback.html"><img src='./examples/example_previews/example10.png' width='100'/></a></td>
-<td><a href="./examples/Example_10_logarithmic_feedback.html"><h4>Example 10: "Logarithmic feedback"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_10_logarithmic_feedback.html">run in browser</a>)
-<break/>
-Iterated logarithmic video feedback. The logarithmic map can be used to approximate the coordinate mapping from visual cortex to retinal (or "subjective") coordinates, which explains why some visual hallucinations take on a tunnel appearance. <i>(Ermentrout GB, Cowan JD. A mathematical theory of visual hallucination patterns. Biological cybernetics. 1979 Oct 1;34(3):137-50.)</i>
-</td></tr>
-<tr><td><a href="./examples/Example_18_psychedelic_mask.html"><img src='./examples/example_previews/example18b.png' width='100'/></a></td>
-<td><a href="./examples/Example_18_psychedelic_mask.html"><h4>Example 18: "Psychedelic filter"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_18_psychedelic_mask.html">run in browser</a>)
-<break/>
-Applies a combination of blues, sharpening, and hue rotations for a psychedelic image effect.
-</td></tr>
-<tr><td><a href="./examples/Example_14_complex_arithmetic.html"><img src='./examples/example_previews/example14b.png' width='100'/></a></td>
-<td><a href="./examples/Example_14_complex_arithmetic.html"><h4>Example 14: "Complex arithmetic"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_14_complex_arithmetic.html">run in browser</a>)
-<break/>
-Interpret length-2 vectors as complex numbers using a collection of macros. More sophisticated video feedback example. 
-</td></tr>
-<tr><td><a href="./examples/Example_27_quasizoom.html"><img src='./examples/example_previews/example27.png' width='100'/></a></td>
-<td><a href="./examples/Example_27_quasizoom.html"><h4>Example 17: "Quasicrystal 1"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_27_quasizoom.html">run in browser</a>)
-<break/>
-An infinitely-zooming quasicrystal visualization with Shepard tone accompaniment, black and white.
-</td></tr>
-<tr><td><a href="./examples/Example_28_quasizoom_color.html"><img src='./examples/example_previews/example28.png' width='100'/></a></td>
-<td><a href="./examples/Example_28_quasizoom_color.html"><h4>Example 17: "Quasicrystal 2"</h4></a>
-(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_28_quasizoom_color.html">run in browser</a>)
-<break/>
-An infinitely-zooming quasicrystal visualization with Shepard tone accompaniment, color.
-</td></tr>
-</table>
-
-
-
 # Neural field simulations
 Using only 8-bit color data to store state values means that these neural field simulations are only approximate. Some dynamical behaviors won't appear at parameters quite qhere the theory predicts. However, most qualitative behaviors are preserved.
 <table>
@@ -256,11 +213,67 @@ Use two color components, with 8-bits each, to implement 16-bit fixed-point stor
 <break/>
 Full-screen test of a logarithmically-mapped Wilson-Cowan pattern forming system.
 </td></tr>
+</table>
+
+
+# Psychedelic
+These examples are "Just for fun"
+<table>
+<tr><td width='120'><a href="./examples/Example_9_quadratic_feedback.html"><img src='./examples/example_previews/example9.png' width='100'/></a></td>
+<td><a href="./examples/Example_9_quadratic_feedback.html"><h4>Example 9: "Quadratic feedback"</h4></a>
+(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_9_quadratic_feedback.html">run in browser</a>)
+<break/>
+Quadratic video feedback example of iterated conformal maps which can be used to render Julia set fractals. 
+</td></tr>
+<tr><td><a href="./examples/Example_10_logarithmic_feedback.html"><img src='./examples/example_previews/example10.png' width='100'/></a></td>
+<td><a href="./examples/Example_10_logarithmic_feedback.html"><h4>Example 10: "Logarithmic feedback"</h4></a>
+(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_10_logarithmic_feedback.html">run in browser</a>)
+<break/>
+Iterated logarithmic video feedback. The logarithmic map can be used to approximate the coordinate mapping from visual cortex to retinal (or "subjective") coordinates, which explains why some visual hallucinations take on a tunnel appearance. <i>(Ermentrout GB, Cowan JD. A mathematical theory of visual hallucination patterns. Biological cybernetics. 1979 Oct 1;34(3):137-50.)</i>
+</td></tr>
+<tr><td><a href="./examples/Example_18_psychedelic_mask.html"><img src='./examples/example_previews/example18b.png' width='100'/></a></td>
+<td><a href="./examples/Example_18_psychedelic_mask.html"><h4>Example 18: "Psychedelic filter"</h4></a>
+(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_18_psychedelic_mask.html">run in browser</a>)
+<break/>
+Applies a combination of blues, sharpening, and hue rotations for a psychedelic image effect.
+</td></tr>
+<tr><td><a href="./examples/Example_14_complex_arithmetic.html"><img src='./examples/example_previews/example14b.png' width='100'/></a></td>
+<td><a href="./examples/Example_14_complex_arithmetic.html"><h4>Example 14: "Complex arithmetic"</h4></a>
+(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_14_complex_arithmetic.html">run in browser</a>)
+<break/>
+Interpret length-2 vectors as complex numbers using a collection of macros. More sophisticated video feedback example. 
+</td></tr>
+<tr><td><a href="./examples/Example_27_quasizoom.html"><img src='./examples/example_previews/example27.png' width='100'/></a></td>
+<td><a href="./examples/Example_27_quasizoom.html"><h4>Example 17: "Quasicrystal 1"</h4></a>
+(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_27_quasizoom.html">run in browser</a>)
+<break/>
+An infinitely-zooming quasicrystal visualization with Shepard tone accompaniment, black and white.
+</td></tr>
+<tr><td><a href="./examples/Example_28_quasizoom_color.html"><img src='./examples/example_previews/20260517112110029424263_screenshot.png' width='100'/></a></td>
+<td><a href="./examples/20260517112110029424263_screenshot.png"><h4>Example 17: "Quasicrystal 2"</h4></a>
+(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_28_quasizoom_color.html">run in browser</a>)
+<break/>
+Just for fun.
+An infinitely-zooming quasicrystal visualization with Shepard tone accompaniment, color.
+</td></tr>
 <tr><td><a href="./examples/wilson_cowan_examples/WC_Example_11_acid_trip.html"><img src='./examples/example_previews/WCexample11.png' width='100'/></a></td>
 <td><a href="./examples/wilson_cowan_examples/WC_Example_11_acid_trip.html"><h4>Example 11: "Psychedelic"</h4></a>
 (<a href="http://michaelerule.github.io/webgpgpu/examples/wilson_cowan_examples/WC_Example_11_acid_trip.html">run in browser</a>)
 <break/>
+Just for fun.
 Full-screen test of a logarithmically-mapped Wilson-Cowan pattern forming system. Additional noise and hue rotation effects are added. This is purely a visual demonstration.
+</td></tr>
+<tr><td><a href="./examples/Example_28_quasizoom_color.html"><img src='./examples/example_previews/20260517112115024341341_screenshot.png' width='100'/></a></td>
+<td><a href="./examples/Example_31_quasizoom_color_nonuniform.html"><h4>Breathe</h4></a>
+(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_31_quasizoom_color_nonuniform.html">run in browser</a>)
+<break/>
+Just for fun.
+</td></tr>
+<tr><td><a href="./examples/Example_28_quasizoom_color.html"><img src='./examples/example_previews/20260517112118387330825_screenshot.png' width='100'/></a></td>
+<td><a href="./examples/Example_32_quasizoom_spin.html"><h4>Spin</h4></a>
+(<a href="http://michaelerule.github.io/webgpgpu/examples/Example_32_quasizoom_spin.html">run in browser</a>)
+<break/>
+Just for fun.
 </td></tr>
 </table>
 
