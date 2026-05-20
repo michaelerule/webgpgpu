@@ -36,6 +36,9 @@ void main() {
     //float height = 1.0-pow(abs(potential),1.0);
     //float height = -sin(potential*PI*3.5)*0.5+0.5;
     float height = abs(mod(potential * 3.5 / 2.0, 1.0) * 2.0 - 1.0);
+    //height = height*2.0-1.0;
+    //height = height*height*sign(height);
+    //height = height*0.5+0.5;
     vec3 c2 = vec3(height);
     
     /*
