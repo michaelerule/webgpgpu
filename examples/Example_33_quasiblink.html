@@ -1,0 +1,119 @@
+<html>
+<!-- based on http://wealoneonearth.blogspot.co.uk/2011/11/visual-analogue-of-shepard-tone.html -->
+
+<script src="../lib/colormaps.js"></script>
+<script src="../lib/gpgpu.js"></script>
+<script src="../lib/gpugaussian.js"></script>
+<script src="../lib/gpurand.js"></script>
+<script src="../lib/complex_macros.js"></script>
+
+<script id="quasi" type="x-shader/x-fragment">
+uniform float phase;
+uniform float hue0;
+uniform float angle;
+uniform float aspect;
+#define PI     (3.14159265359)
+#define TWOPI  (2.0*PI)
+#define NWAVE  (7)
+#define NSCALE (12)
+#define NBANDS (float(40)*2.0*PI)
+void main() {
+    vec2 q = gl_FragCoord.xy/vec2(W,H)-vec2(0.5); 
+    q.x *= aspect;
+    q.y /= aspect;
+    
+    float potential = 0.0;
+    vec2  gradient  = vec2(0.0);
+    for (int k=0;k<NWAVE;k++) {
+        float phi = (float(k)+0.25)*PI/float(NWAVE) + angle;
+        vec2  z   = vec2(cos(phi),sin(phi));
+        float psi = (dot(z,q) - phase)*NBANDS;
+        potential += cos(psi);
+        gradient  += (-sin(psi))*z;
+    }
+    potential /= float(NWAVE); 
+    //float height = potential*0.5+0.4; 
+    //float height = 1.0-pow(abs(potential),1.0);
+    //float height = -sin(potential*PI*3.5)*0.5+0.5;
+    float height = abs(mod(potential * 3.5 / 2.0, 1.0) * 2.0 - 1.0);
+    vec3 c2 = vec3(height);
+    
+    /*
+    // Hue wheel
+    float hue = atan(gradient.y,gradient.x) + hue0 + length(q)*10.0;
+    vec2  h   = vec2(cos(hue),sin(hue));
+    float Q1  = h.y/sqrt(3.0);
+    float Q2  = (1.0-h.x)/3.0;
+    vec3  c   = vec3(0.8,0.8,0.0);
+    vec3  d   = c.rgb-c.brg;
+    float r1  = Q2*(d.g-d.r)-Q1*d.b+c.r;
+    float Z   = Q2*(d.b-d.r)+Q1*d.g;
+    c2 = vec3(r1,c.g+Z+c.r-r1,c.b-Z)*(0.5+(1.0-height)*0.5);
+    
+    // Specular highlight
+    vec3  normal = normalize(vec3(gradient,0.2*float(NWAVE)));
+    vec3  light  = normalize(vec3(1.,-1.,2.));
+    float mask   = smoothstep(.2,.3,potential);
+    c2.rgb += 0.9*smoothstep(.8,1.,dot(light,normal))*mask;
+    */
+
+    gl_FragColor = vec4(c2,0.0);
+}
+</script>
+
+
+<script>
+// This is the main script that will run when the website loads
+function main()
+{
+    // Create a WebGL context on the canvas, abort if fail
+    var canvas = $("maincanvas");
+    var gl = getRasterGL(canvas);
+    if (!gl) OUT; 
+
+    quasi = getRasterProgram(gl,'quasi');
+    var phase = 0.0;
+    var hue   = 0.0;
+    var angle = 0.0;
+    var TWOPI = 6.28318530718;
+    function animate() {
+        setTimeout(function(){
+            phase = (phase +0.0005 )%TWOPI;
+            angle = (angle +0.001  )%TWOPI;
+            //hue   = (hue     -0.1    )%TWOPI;
+            quasi({phase:phase,hue0:hue,angle:angle,aspect:get_aspect()});
+        requestAnimationFrame(animate);
+        },1000./20.);
+    }
+    animate();
+}
+if (typeof(document.isFullscreen === undefined)) {
+  document.isFullscreen = function() {
+ return !((document.fullScreenElement !== undefined && document.fullScreenElement === null) || 
+ (document.msFullscreenElement !== undefined && document.msFullscreenElement === null) || 
+ (document.mozFullScreen !== undefined && !document.mozFullScreen) || 
+ (document.webkitIsFullScreen !== undefined && !document.webkitIsFullScreen));
+  }
+}
+function get_aspect() {
+    var canvas = $("maincanvas");
+    var w,h;
+    if (document.isFullscreen()) {
+        w = canvas.width;
+        h = canvas.height;
+    } else {
+        w = canvas.scrollWidth ||canvas.width;
+        h = canvas.scrollHeight||canvas.height;
+    }
+    return Math.sqrt(w/h);
+}
+</script>
+<body onload="javascript:main()" style="margin:0px;padding:0px;">
+<canvas id='maincanvas' style="width:100%;height:100%;margin:0px;padding:0px;"></canvas>
+
+<div style="display:initial;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;pointer-events:none;font:bold 28pt sans-serif;text-align:center;color:white;-webkit-text-stroke:2px black;">
+[blink]<br>
+</div>
+
+</body>
+</html>
