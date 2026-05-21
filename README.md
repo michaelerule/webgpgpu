@@ -273,13 +273,14 @@ Just for fun.
 <break/>
 Just for fun.
 </td></tr>
-<tr><td><a href="./examples/Example_33_quasiblink.html"><img src='./examples/example_previews/20260521135913653806864_screenshot.png.png' width='100'/></a></td>
+<tr><td><a href="./examples/Example_33_quasiblink.html"><img src='./examples/example_previews/20260521135913653806864_screenshot.png' width='100'/></a></td>
 <td><a href="./examples/Example_32_quasizoom_spin.html"><h4>Blink</h4></a>
 (<a href="http://michaelerule.github.io/webgpgpu/examples/Example_33_quasiblink.html">run in browser</a>)
 <break/>
 Just for fun (based on K McAllester's original).
 </td></tr>
 </table>
+
 
 
 #  "Games"
